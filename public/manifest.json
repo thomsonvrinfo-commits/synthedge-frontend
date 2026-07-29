@@ -1,0 +1,10 @@
+{
+  "name": "SynthEdge",
+  "short_name": "SynthEdge",
+  "description": "Trading analytics and backtesting platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f19",
+  "theme_color": "#0b0f19",
+  "icons": []
+}

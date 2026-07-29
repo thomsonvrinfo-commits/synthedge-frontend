@@ -1,0 +1,145 @@
+{
+  "name": "TraderProfile",
+  "type": "object",
+  "properties": {
+    "display_name": {
+      "type": "string"
+    },
+    "goals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Selected improvement goals"
+    },
+    "custom_strategies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "User-defined strategy tags"
+    },
+    "custom_fields": {
+      "type": "array",
+      "description": "User-defined journal fields",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "checkbox",
+              "text",
+              "number",
+              "dropdown",
+              "tags"
+            ]
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "dashboard_widgets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Enabled dashboard widget ids"
+    },
+    "account_size": {
+      "type": "number",
+      "description": "Starting account balance"
+    },
+    "risk_per_trade": {
+      "type": "number",
+      "description": "Max risk % per trade"
+    },
+    "max_daily_trades": {
+      "type": "number",
+      "description": "Max allowed trades per day"
+    },
+    "preferred_sessions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "preferred_indices": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "subscription_plan": {
+      "type": "string",
+      "enum": [
+        "trial",
+        "pro",
+        "free"
+      ],
+      "default": "trial",
+      "description": "Current subscription plan"
+    },
+    "trial_end_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date when the 7-day trial expires"
+    }
+  },
+  "required": [],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

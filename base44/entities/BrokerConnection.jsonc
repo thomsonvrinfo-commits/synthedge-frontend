@@ -1,0 +1,83 @@
+{
+  "name": "BrokerConnection",
+  "type": "object",
+  "properties": {
+    "broker": {
+      "type": "string",
+      "enum": [
+        "deriv",
+        "mt5_exness"
+      ],
+      "description": "Connected broker"
+    },
+    "account_id": {
+      "type": "string",
+      "description": "Broker account login / identifier"
+    },
+    "account_type": {
+      "type": "string",
+      "enum": [
+        "live",
+        "demo"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "connected",
+        "error",
+        "disconnected"
+      ],
+      "default": "connected"
+    },
+    "last_synced_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last successful trade sync timestamp"
+    },
+    "connected_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Human-readable account label"
+    },
+    "encrypted_token": {
+      "type": "string",
+      "description": "AES-GCM encrypted Deriv API token. Plaintext is never stored. mt5_exness connections leave this null."
+    },
+    "metaapi_account_id": {
+      "type": "string",
+      "description": "MetaAPI account reference for mt5_exness connections. Deriv leaves this null."
+    },
+    "server": {
+      "type": "string",
+      "description": "MT5 server name (mt5_exness only)"
+    },
+    "last_error": {
+      "type": "string",
+      "description": "Last sync error message (cleared on success)"
+    }
+  },
+  "required": [
+    "broker",
+    "account_id",
+    "account_type",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

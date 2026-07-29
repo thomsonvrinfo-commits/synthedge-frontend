@@ -1,0 +1,79 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "description": "The role of the user in the app",
+      "enum": [
+        "admin",
+        "user"
+      ]
+    },
+    "plan": {
+      "type": "string",
+      "enum": [
+        "FREE",
+        "EARLY_ACCESS"
+      ],
+      "default": "FREE",
+      "description": "Subscription plan"
+    },
+    "subscriptionStatus": {
+      "type": "string",
+      "enum": [
+        "TRIAL",
+        "ACTIVE",
+        "EXPIRED",
+        "CANCELLED"
+      ],
+      "default": "TRIAL",
+      "description": "Current subscription status"
+    },
+    "trialStartDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the 7-day trial started"
+    },
+    "trialEndDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the 7-day trial ends"
+    },
+    "subscriptionStartDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the paid subscription started"
+    },
+    "subscriptionEndDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the current billing period ends"
+    },
+    "paymentProvider": {
+      "type": "string",
+      "enum": [
+        "paynow",
+        "stripe",
+        "ecocash",
+        "manual"
+      ],
+      "description": "Payment provider used for last successful payment"
+    },
+    "paynowReference": {
+      "type": "string",
+      "description": "Paynow poll URL or transaction reference"
+    },
+    "lastPaymentDate": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nextBillingDate": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "role"
+  ]
+}
