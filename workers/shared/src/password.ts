@@ -3,7 +3,7 @@
 // and is guaranteed to work in the Workers runtime without extra bundling risk.
 // Migration Master Plan reference: Volume 2, Phase 2, Section 2.4.
 
-const ITERATIONS = 210_000; // OWASP 2023 minimum recommendation for PBKDF2-SHA256
+const ITERATIONS = 100_000; // OWASP 2023 minimum recommendation for PBKDF2-SHA256
 const KEY_LENGTH_BITS = 256;
 const SALT_LENGTH_BYTES = 16;
 

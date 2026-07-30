@@ -26,7 +26,16 @@ export interface BrevoEvent {
 }
 
 export interface BrevoTransactionalEmail {
-  to: { email: string; name?: string }[];
+  sender?: {
+    email: string;
+    name?: string;
+  };
+
+  to: {
+    email: string;
+    name?: string;
+  }[];
+
   templateId?: number;
   subject?: string;
   htmlContent?: string;
@@ -112,15 +121,24 @@ export async function syncBrevoContactAndEvent(
  * Migration Master Plan Volume 2, Phase 2, Section 2.5 — confirm Brevo
  * template support before relying on this for production OTP delivery.
  */
-export async function sendTransactionalEmail(apiKey: string, email: BrevoTransactionalEmail): Promise<boolean> {
+export async function sendTransactionalEmail(
+  apiKey: string,
+  email: BrevoTransactionalEmail
+): Promise<boolean> {
   try {
-    const res = await brevoFetch(apiKey, '/smtp/email', {
-      method: 'POST',
+    const res = await brevoFetch(apiKey, "/smtp/email", {
+      method: "POST",
       body: JSON.stringify(email),
     });
+
+    const responseBody = await res.text();
+
+    console.log("[BREVO STATUS]", res.status);
+    console.log("[BREVO RESPONSE]", responseBody);
+
     return res.ok;
   } catch (err) {
-    console.error('[brevo] sendTransactionalEmail failed', { to: email.to, err: String(err) });
+    console.error("[brevo] sendTransactionalEmail failed", err);
     return false;
   }
 }

@@ -133,14 +133,74 @@ export async function handleMe(request: Request, env: Env): Promise<Response> {
 
   return jsonOk({ ok: true, user });
 }
-
 export async function handleUpdateMe(request: Request, env: Env): Promise<Response> {
   const authResult = await requireAuth(request, env);
   if (authResult instanceof Response) return authResult;
 
-  const body = await request.json<{ full_name?: string }>().catch(() => null);
-  if (!body || typeof body.full_name !== 'string') return jsonError('full_name is required', 400);
+  const body = await request.json<{
+    full_name?: string;
+    display_name?: string;
+    goals?: string[];
+    subscription_plan?: string;
+    trial_end_date?: string;
+  }>().catch(() => null);
 
-  await d1Run(env.DB, 'UPDATE users SET full_name = ?, updated_date = ? WHERE id = ?', body.full_name.trim(), nowIso(), authResult.sub);
-  return jsonOk({ ok: true });
+  if (!body) {
+    return jsonError('Invalid request body', 400);
+  }
+
+  const name = body.full_name ?? body.display_name ?? null;
+
+  const goals = body.goals
+    ? JSON.stringify(body.goals)
+    : null;
+
+  // Database only allows FREE or EARLY_ACCESS
+  // Frontend sends "trial", so map it correctly
+  let plan: string | null = null;
+
+  if (body.subscription_plan) {
+    const requestedPlan = body.subscription_plan.toLowerCase();
+
+    if (requestedPlan === 'trial') {
+      plan = 'FREE';
+    } else if (requestedPlan === 'early_access') {
+      plan = 'EARLY_ACCESS';
+    } else if (requestedPlan === 'free') {
+      plan = 'FREE';
+    }
+  }
+
+  if (!name && !goals && !plan && !body.trial_end_date) {
+    return jsonError('No fields provided', 400);
+  }
+
+  await d1Run(
+    env.DB,
+    `
+    UPDATE users SET
+      full_name = COALESCE(?, full_name),
+      goals = COALESCE(?, goals),
+      plan = COALESCE(?, plan),
+      subscription_status = CASE
+        WHEN ? = 'FREE' AND subscription_status IS NULL
+        THEN 'TRIAL'
+        ELSE subscription_status
+      END,
+      trial_end_date = COALESCE(?, trial_end_date),
+      updated_date = ?
+    WHERE id = ?
+    `,
+    name?.trim() ?? null,
+    goals,
+    plan,
+    plan,
+    body.trial_end_date ?? null,
+    nowIso(),
+    authResult.sub
+  );
+
+  return jsonOk({ 
+    ok: true 
+  });
 }

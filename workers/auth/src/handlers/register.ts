@@ -77,11 +77,20 @@ export async function issueAndSendOtp(
 
   if (env.BREVO_API_KEY) {
     const subject = purpose === 'signup_verify' ? 'Verify your SynthEdge account' : 'Your SynthEdge password reset code';
-    await sendTransactionalEmail(env.BREVO_API_KEY, {
-      to: [{ email }],
-      subject,
-      htmlContent: `<p>Your SynthEdge verification code is:</p><h2>${code}</h2><p>This code expires in ${OTP_TTL_MINUTES} minutes.</p>`,
-    });
+  await sendTransactionalEmail(env.BREVO_API_KEY, {
+  sender: {
+    name: "SynthEdge",
+    email: "thomsonvr.info@gmail.com"
+},
+  to: [{ email }],
+  subject,
+  htmlContent: `
+    <h2>SynthEdge Verification</h2>
+    <p>Your verification code is:</p>
+    <h1>${code}</h1>
+    <p>This code expires in ${OTP_TTL_MINUTES} minutes.</p>
+  `,
+});
   } else {
     // No Brevo key configured (e.g. local dev) — log so the flow is still testable.
     console.warn('[auth] BREVO_API_KEY not set; OTP code (dev only):', code);
