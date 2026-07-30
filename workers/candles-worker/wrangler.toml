@@ -1,0 +1,16 @@
+name = "synthedge-candles-api"
+
+main = "src/index.js"
+
+compatibility_date = "2024-09-01"
+
+
+[[d1_databases]]
+binding = "DB"
+database_name = "synthedge-candles-v2"
+database_id = "d3211d52-e98b-43fd-a9ba-e0d0ce726d88"
+
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "synthetic-candles"

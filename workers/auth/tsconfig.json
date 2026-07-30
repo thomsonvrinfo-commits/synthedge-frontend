@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@synthedge/shared": ["../shared/src/index.ts"],
+      "@synthedge/shared/*": ["../shared/src/*"]
+    }
+  },
+  "include": ["src", "../shared/src"],
+  "exclude": ["src/test-utils", "src/**/*.integration.test.ts"]
+}

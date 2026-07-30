@@ -1,0 +1,23 @@
+{
+  "name": "synthedge-platform",
+  "private": true,
+  "version": "1.0.0",
+  "description": "SynthEdge independent Cloudflare stack (post-Base44 migration): auth Worker, entities Worker, candles Worker, and the shared library they all depend on.",
+  "workspaces": [
+    "workers/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:migrate:local": "wrangler d1 migrations apply synthedge-db --local",
+    "db:migrate:staging": "wrangler d1 migrations apply synthedge-db --env staging --remote",
+    "db:migrate:production": "wrangler d1 migrations apply synthedge-db --env production --remote"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "wrangler": "^4.0.0",
+    "@cloudflare/workers-types": "^5.20260722.1",
+    "vitest": "^2.1.8"
+  }
+}

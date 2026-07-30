@@ -1,0 +1,52 @@
+# SynthEdge Entities Worker — Wrangler configuration.
+# Shares the same D1 database and JWT_SECRET as the auth Worker (tokens
+# issued by workers/auth must validate here). Replace placeholder IDs before
+# first deploy in each environment; see workers/auth/wrangler.toml for the
+# full first-deploy walkthrough (create D1/KV, run migrations, set secrets).
+
+name = "synthedge-entities"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "synthedge-db"
+database_id = "2a1a6ca1-9fa4-4fe0-84a8-ad3f7822b3ef"
+migrations_dir = "../../db/migrations"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "9ac4b377eea944d78e4c789f6412961f"
+
+# --- Staging ---
+[env.staging]
+name = "synthedge-entities-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "synthedge-db-staging"
+database_id = "REPLACE_WITH_STAGING_DB_ID"
+migrations_dir = "../../db/migrations"
+
+[[env.staging.kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_STAGING_KV_ID"
+
+# --- Production ---
+[env.production]
+name = "synthedge-entities-production"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "synthedge-db-production"
+database_id = "REPLACE_WITH_PRODUCTION_DB_ID"
+migrations_dir = "../../db/migrations"
+
+[[env.production.kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_PRODUCTION_KV_ID"
+
+# Secrets (set via CLI, must match the values used for workers/auth):
+#   wrangler secret put JWT_SECRET --env staging
+#   (repeat with --env production)

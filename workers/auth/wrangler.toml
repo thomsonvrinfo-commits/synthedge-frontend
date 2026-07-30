@@ -1,0 +1,81 @@
+# SynthEdge Auth Worker — Wrangler configuration.
+# Migration Master Plan Volume 2, Phase 1, Section 1.11: every binding, every
+# cron, every route lives here in version control — unlike the current Base44
+# dashboard configuration, which is invisible and unversioned.
+#
+# Deploy:
+#   wrangler deploy --env staging
+#   wrangler deploy --env production
+#
+# Before first deploy in each environment, replace the placeholder
+# database_id / kv_namespace id values below with real ones from:
+#   wrangler d1 create synthedge-db --env staging
+#   wrangler kv namespace create synthedge-kv --env staging
+# (repeat for production), then run the migration:
+#   npm run db:migrate:staging
+
+name = "synthedge-auth"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+APP_BASE_URL = "http://localhost:5173"
+ACCESS_TOKEN_TTL_MIN = "15"
+REFRESH_TOKEN_TTL_DAYS = "30"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "synthedge-db"
+database_id = "2a1a6ca1-9fa4-4fe0-84a8-ad3f7822b3ef"
+migrations_dir = "../../db/migrations"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "9ac4b377eea944d78e4c789f6412961f"
+
+# --- Staging ---
+[env.staging]
+name = "synthedge-auth-staging"
+
+[env.staging.vars]
+APP_BASE_URL = "https://staging.synthedge.app"
+ACCESS_TOKEN_TTL_MIN = "15"
+REFRESH_TOKEN_TTL_DAYS = "30"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "synthedge-db-staging"
+database_id = "REPLACE_WITH_STAGING_DB_ID"
+migrations_dir = "../../db/migrations"
+
+[[env.staging.kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_STAGING_KV_ID"
+
+# --- Production ---
+[env.production]
+name = "synthedge-auth-production"
+
+[env.production.vars]
+APP_BASE_URL = "https://app.synthedge.app"
+ACCESS_TOKEN_TTL_MIN = "15"
+REFRESH_TOKEN_TTL_DAYS = "30"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "synthedge-db-production"
+database_id = "REPLACE_WITH_PRODUCTION_DB_ID"
+migrations_dir = "../../db/migrations"
+
+[[env.production.kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_PRODUCTION_KV_ID"
+
+# Secrets (never stored in this file — set via CLI, one per environment):
+#   wrangler secret put JWT_SECRET --env staging
+#   wrangler secret put BREVO_API_KEY --env staging
+#   wrangler secret put GOOGLE_CLIENT_ID --env staging
+#   wrangler secret put GOOGLE_CLIENT_SECRET --env staging
+#   wrangler secret put GOOGLE_REDIRECT_URI --env staging
+#   (repeat with --env production for the production secret set)

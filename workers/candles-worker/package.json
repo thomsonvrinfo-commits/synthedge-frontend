@@ -1,0 +1,12 @@
+{
+  "name": "@synthedge/candles-worker",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "parquet-wasm": "^0.7.2"
+  }
+}

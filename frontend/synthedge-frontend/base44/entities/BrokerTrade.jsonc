@@ -1,0 +1,125 @@
+{
+  "name": "BrokerTrade",
+  "type": "object",
+  "properties": {
+    "broker": {
+      "type": "string",
+      "enum": [
+        "deriv",
+        "mt5_exness"
+      ]
+    },
+    "account_id": {
+      "type": "string"
+    },
+    "account_type": {
+      "type": "string",
+      "enum": [
+        "live",
+        "demo"
+      ]
+    },
+    "broker_trade_id": {
+      "type": "string",
+      "description": "Broker-side unique trade id. Dedup key with broker + account_id."
+    },
+    "symbol": {
+      "type": "string"
+    },
+    "side": {
+      "type": "string",
+      "enum": [
+        "buy",
+        "sell"
+      ]
+    },
+    "volume": {
+      "type": "number"
+    },
+    "entry_price": {
+      "type": "number"
+    },
+    "exit_price": {
+      "type": "number"
+    },
+    "stop_loss": {
+      "type": "number"
+    },
+    "take_profit": {
+      "type": "number"
+    },
+    "opened_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "closed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "currency": {
+      "type": "string",
+      "default": "USD"
+    },
+    "pnl": {
+      "type": "number",
+      "default": 0
+    },
+    "fees": {
+      "type": "number",
+      "default": 0
+    },
+    "swap": {
+      "type": "number",
+      "default": 0
+    },
+    "duration_seconds": {
+      "type": "number"
+    },
+    "r_multiple": {
+      "type": "number",
+      "description": "Optional risk multiple"
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "win",
+        "loss",
+        "breakeven"
+      ]
+    },
+    "emotion_tag": {
+      "type": "string",
+      "description": "User-added emotion tag (editable)"
+    },
+    "note": {
+      "type": "string",
+      "description": "User-added note (editable)"
+    },
+    "raw_payload": {
+      "type": "object",
+      "description": "Raw broker trade payload for audit"
+    }
+  },
+  "required": [
+    "broker",
+    "account_id",
+    "broker_trade_id",
+    "symbol",
+    "side",
+    "result"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

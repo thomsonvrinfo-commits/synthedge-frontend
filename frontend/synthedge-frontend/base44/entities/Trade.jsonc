@@ -1,0 +1,274 @@
+{
+  "name": "Trade",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Canonical symbol field (replaces synthetic_index)"
+    },
+    "synthetic_index": {
+      "type": "string",
+      "enum": [
+        "EUR/USD",
+        "GBP/USD",
+        "USD/JPY",
+        "USD/CHF",
+        "AUD/USD",
+        "NZD/USD",
+        "USD/CAD",
+        "XAU/USD",
+        "Volatility 10",
+        "Volatility 25",
+        "Volatility 50",
+        "Volatility 75",
+        "Volatility 100",
+        "Volatility 10 (1s)",
+        "Volatility 25 (1s)",
+        "Volatility 50 (1s)",
+        "Volatility 75 (1s)",
+        "Volatility 100 (1s)",
+        "Boom 300",
+        "Boom 500",
+        "Boom 1000",
+        "Crash 300",
+        "Crash 500",
+        "Crash 1000",
+        "Jump 10",
+        "Jump 25",
+        "Jump 50",
+        "Jump 75",
+        "Jump 100",
+        "Step Index",
+        "Range Break 100",
+        "Range Break 200"
+      ],
+      "description": "Legacy field \u2014 use symbol instead"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "Buy",
+        "Sell"
+      ]
+    },
+    "entry_price": {
+      "type": "number"
+    },
+    "exit_price": {
+      "type": "number"
+    },
+    "stop_loss": {
+      "type": "number"
+    },
+    "take_profit": {
+      "type": "number"
+    },
+    "lot_size": {
+      "type": "number"
+    },
+    "stake": {
+      "type": "number",
+      "description": "Stake or amount risked in account currency (USD)"
+    },
+    "rr": {
+      "type": "number",
+      "description": "Canonical R:R ratio (replaces risk_reward_ratio)"
+    },
+    "risk_reward_ratio": {
+      "type": "number",
+      "description": "Legacy field \u2014 use rr instead"
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "Win",
+        "Loss",
+        "Breakeven"
+      ]
+    },
+    "pl": {
+      "type": "number",
+      "description": "Canonical P/L in account currency (replaces profit_loss)"
+    },
+    "profit_loss": {
+      "type": "number",
+      "description": "Legacy field \u2014 use pl instead"
+    },
+    "setup": {
+      "type": "string",
+      "description": "Canonical setup field (replaces strategy)"
+    },
+    "strategy": {
+      "type": "string",
+      "description": "Legacy field \u2014 use setup instead"
+    },
+    "emotional_state": {
+      "type": "string",
+      "enum": [
+        "Calm",
+        "Confident",
+        "Anxious",
+        "FOMO",
+        "Revenge",
+        "Frustrated",
+        "Excited",
+        "Neutral",
+        "Fearful",
+        "Overconfident"
+      ]
+    },
+    "confidence_level": {
+      "type": "number",
+      "description": "Confidence 1-10 before entry"
+    },
+    "session": {
+      "type": "string",
+      "enum": [
+        "London",
+        "New York",
+        "Asian",
+        "Sydney",
+        "Overlap"
+      ]
+    },
+    "trade_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Legacy timestamp \u2014 canonical field is created_date (built-in)"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "trade_reasoning": {
+      "type": "string",
+      "description": "Why this trade was taken"
+    },
+    "market_conditions": {
+      "type": "string",
+      "description": "Market context at time of trade"
+    },
+    "mistakes_made": {
+      "type": "string",
+      "description": "Mistakes identified post-trade"
+    },
+    "lessons_learned": {
+      "type": "string",
+      "description": "Key takeaways from the trade"
+    },
+    "execution_rating": {
+      "type": "number",
+      "description": "Self-rated execution quality 1-10"
+    },
+    "rule_violations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of trading rules violated"
+    },
+    "plan_followed": {
+      "type": "string",
+      "enum": [
+        "Fully",
+        "Partially",
+        "No"
+      ],
+      "description": "Whether the trader followed their plan"
+    },
+    "reflection_completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether quick reflection was completed"
+    },
+    "dataset": {
+      "type": "string",
+      "enum": [
+        "LIVE",
+        "BACKTEST"
+      ],
+      "default": "LIVE",
+      "description": "Which dataset this trade belongs to"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "MANUAL",
+        "CSV",
+        "SCREENSHOT",
+        "REPLAY",
+        "LONG_SHORT_TOOL",
+        "journal",
+        "backtest"
+      ],
+      "default": "MANUAL",
+      "description": "How this trade was created. journal/backtest are legacy values."
+    },
+    "replay_session_id": {
+      "type": "string",
+      "description": "ID of the ReplaySession this trade belongs to (research sessions only; null/undefined for quick replay)"
+    },
+    "screenshot_url": {
+      "type": "string",
+      "description": "Primary screenshot URL"
+    },
+    "screenshot_before": {
+      "type": "string"
+    },
+    "screenshot_during": {
+      "type": "string"
+    },
+    "screenshot_after": {
+      "type": "string"
+    },
+    "custom_fields": {
+      "type": "object",
+      "description": "Custom journal fields defined by the trader"
+    }
+  },
+  "required": [
+    "direction",
+    "entry_price",
+    "result"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
