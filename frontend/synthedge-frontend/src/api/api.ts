@@ -10,20 +10,18 @@ const API_URL =
 export function setToken(token:string){
 
     localStorage.setItem(
-        "synthedge_token",
-        token
-    );
-
+    "synthedge_access_token",
+    token
+);
 }
 
 
 
 export function getToken(){
 
-    return localStorage.getItem(
-        "synthedge_token"
-    );
-
+   return localStorage.getItem(
+    "synthedge_access_token"
+);
 }
 
 

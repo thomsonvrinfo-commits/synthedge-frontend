@@ -41,18 +41,24 @@ export const AuthProvider = ({ children }) => {
 
     const accessToken = hashParams.get("access_token");
 
-    if (accessToken) {
+ if (accessToken) {
 
-      setAuthToken(accessToken);
+  console.log("GOOGLE CALLBACK TOKEN FOUND");
 
-      window.history.replaceState(
-        null,
-        "",
-        window.location.pathname + window.location.search
-      );
+  setAuthToken(accessToken);
 
-    }
+  console.log(
+    "AFTER SAVE:",
+    localStorage.getItem("synthedge_access_token")
+  );
 
+  window.history.replaceState(
+    null,
+    "",
+    window.location.pathname + window.location.search
+  );
+
+}
   }, []);
 
 
