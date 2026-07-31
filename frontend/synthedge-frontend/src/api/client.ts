@@ -24,8 +24,13 @@
  * will NOT populate this key. See Phase 1 migration notes for details.
  */
 
-const API_BASE_URL: string =
-  (import.meta.env?.VITE_API_BASE_URL as string | undefined) || "/api";
+const AUTH_API_URL =
+  (import.meta.env?.VITE_AUTH_API_URL as string | undefined) ||
+  "https://synthedge-auth.thomsonvr-info.workers.dev";
+
+const ENTITY_API_URL =
+  (import.meta.env?.VITE_ENTITY_API_URL as string | undefined) ||
+  "https://synthedge-entities.thomsonvr-info.workers.dev";
 
 const TOKEN_STORAGE_KEY = "synthedge_access_token";
 
@@ -102,9 +107,18 @@ export interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
+
+  const base =
+    path.startsWith("/auth") ||
+    path.startsWith("/users")
+      ? AUTH_API_URL
+      : ENTITY_API_URL;
+
   const url = new URL(
-    path.startsWith("http") ? path : `${API_BASE_URL}${path}`,
-    typeof window !== "undefined" ? window.location.origin : undefined
+    path.startsWith("http") ? path : `${base}${path}`,
+    typeof window !== "undefined"
+      ? window.location.origin
+      : undefined
   );
   if (query) {
     Object.entries(query).forEach(([key, value]) => {
@@ -177,4 +191,7 @@ export const apiClient = {
     request<T>(path, { ...options, method: "DELETE" }),
 };
 
-export { API_BASE_URL };
+export {
+  AUTH_API_URL,
+  ENTITY_API_URL
+};

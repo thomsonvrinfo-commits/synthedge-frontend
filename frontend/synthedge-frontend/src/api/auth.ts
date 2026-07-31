@@ -42,7 +42,7 @@
  *   POST   /auth/password/forgot     { email }             -> {}
  *   POST   /auth/password/reset      { resetToken, newPassword } -> {}
  */
-import { apiClient, ApiError, API_BASE_URL, setAuthToken, clearAuthToken, getAuthToken } from "@/api/client";
+import { apiClient, ApiError, AUTH_API_URL, setAuthToken, clearAuthToken, getAuthToken } from "@/api/client";
 
 export interface AuthUser {
   id: string;
@@ -87,7 +87,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
  * confirmed — no other file should need to change.
  */
 export function loginWithGoogle(redirectTo = "/"): void {
-  const url = new URL(`${API_BASE_URL}/auth/google/start`, window.location.origin);
+const url = new URL(`${AUTH_API_URL}/auth/google/start`, window.location.origin);
   url.searchParams.set("redirect_to", redirectTo);
   window.location.href = url.toString();
 }

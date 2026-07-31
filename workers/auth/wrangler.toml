@@ -20,7 +20,7 @@ compatibility_date = "2026-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-APP_BASE_URL = "https://synthedge-frontend.pages.dev"
+APP_BASE_URL = "https://synthedgeapp.co.zw"
 ACCESS_TOKEN_TTL_MIN = "15"
 REFRESH_TOKEN_TTL_DAYS = "30"
 

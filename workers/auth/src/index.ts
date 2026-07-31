@@ -36,13 +36,30 @@ import { issueSessionTokens } from './session';
 // zone/domain before first deploy.
 // ---------------------------------------------------------------------------
 
-function withCors(response: Response, appBaseUrl: string): Response {
+function withCors(response: Response, request: Request): Response {
   const headers = new Headers(response.headers);
-  headers.set('Access-Control-Allow-Origin', appBaseUrl);
-  headers.set('Access-Control-Allow-Credentials', 'true');
-  headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  headers.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-  return new Response(response.body, { status: response.status, headers });
+
+  const origin = request.headers.get("Origin") ?? "";
+
+  const allowedOrigins = [
+    "https://synthedgeapp.co.zw",
+    "https://www.synthedgeapp.co.zw",
+    "http://localhost:5173",
+  ];
+
+  if (allowedOrigins.includes(origin)) {
+    headers.set("Access-Control-Allow-Origin", origin);
+  }
+
+  headers.set("Vary", "Origin");
+  headers.set("Access-Control-Allow-Credentials", "true");
+  headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  headers.set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+
+  return new Response(response.body, {
+    status: response.status,
+    headers,
+  });
 }
 
 async function router(request: Request, env: Env): Promise<Response> {
@@ -112,6 +129,7 @@ async function router(request: Request, env: Env): Promise<Response> {
     return jsonOk({ ok: true, message: 'Trial initialized' });
   }
 
+
   return jsonError('Not found', 404);
 }
 
@@ -119,7 +137,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
       const response = await router(request, env);
-      return withSecurityHeaders(withCors(response, env.APP_BASE_URL));
+      return withSecurityHeaders(withCors(response, request));
     } catch (err) {
       console.error('[auth] unhandled error', err);
       return withSecurityHeaders(jsonError('Internal server error', 500));
