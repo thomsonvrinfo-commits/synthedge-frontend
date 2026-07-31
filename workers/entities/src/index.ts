@@ -28,9 +28,15 @@ import {
   deleteReplaySession,
 } from "./handlers/replaySessions";
 
-function withCors(response: Response): Response {
+function withCors(response: Response, appBaseUrl: string): Response {
   const headers = new Headers(response.headers);
-  headers.set("Access-Control-Allow-Origin", "*");
+  // A wildcard origin cannot be combined with credentialed requests (the
+  // browser will reject the response outright) — every request from
+  // api/client.ts now sends `credentials: "include"` so the auth Worker's
+  // refresh cookie can reach it, so this has to echo the real app origin,
+  // matching how workers/auth's withCors already works.
+  headers.set("Access-Control-Allow-Origin", appBaseUrl);
+  headers.set("Access-Control-Allow-Credentials", "true");
   headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   headers.set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
   return new Response(response.body, { status: response.status, headers });
@@ -101,7 +107,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
       const response = await router(request, env);
-      return withSecurityHeaders(withCors(response));
+      return withSecurityHeaders(withCors(response, env.APP_BASE_URL));
     } catch (err) {
       console.error("[entities] unhandled error", err);
       return withSecurityHeaders(jsonError("Internal server error", 500));
