@@ -1,0 +1,15 @@
+SynthEdge checkpoint 30 July 2026
+
+Completed:
+- Auth Worker TypeScript builds
+- D1 migration 0001 applied
+- users/trades/replay_sessions tables exist
+- JWT_SECRET fixed using .dev.vars
+- /auth/register works
+- /auth/login returns JWT accessToken
+
+Next:
+- Test authenticated routes
+- Deploy Worker
+- Connect frontend API
+- Continue Base44 migration
