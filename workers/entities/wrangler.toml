@@ -18,12 +18,16 @@ migrations_dir = "../../db/migrations"
 [[kv_namespaces]]
 binding = "KV"
 id = "9ac4b377eea944d78e4c789f6412961f"
+
 [vars]
 APP_BASE_URL = "https://synthedgeapp.co.zw"
 
 # --- Staging ---
 [env.staging]
 name = "synthedge-entities-staging"
+
+[env.staging.vars]
+APP_BASE_URL = "https://synthedgeapp.co.zw"
 
 [[env.staging.d1_databases]]
 binding = "DB"
@@ -39,6 +43,9 @@ id = "REPLACE_WITH_STAGING_KV_ID"
 [env.production]
 name = "synthedge-entities-production"
 
+[env.production.vars]
+APP_BASE_URL = "https://synthedgeapp.co.zw"
+
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "synthedge-db-production"
@@ -51,4 +58,4 @@ id = "REPLACE_WITH_PRODUCTION_KV_ID"
 
 # Secrets (set via CLI, must match the values used for workers/auth):
 #   wrangler secret put JWT_SECRET --env staging
-#   (repeat with --env production)
+#   wrangler secret put JWT_SECRET --env production
