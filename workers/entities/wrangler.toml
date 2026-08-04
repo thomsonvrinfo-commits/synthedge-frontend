@@ -18,6 +18,8 @@ migrations_dir = "../../db/migrations"
 [[kv_namespaces]]
 binding = "KV"
 id = "9ac4b377eea944d78e4c789f6412961f"
+[vars]
+APP_BASE_URL = "https://synthedgeapp.co.zw"
 
 # --- Staging ---
 [env.staging]
