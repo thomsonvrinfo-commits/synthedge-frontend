@@ -20,17 +20,13 @@
  *   POST   /profile    { ...fields } -> TraderProfile
  *   PATCH  /profile    { ...fields } -> TraderProfile
  *
- * Field-level write restrictions: the current Base44 `updateTraderProfile`
- * function enforces a safe-fields allowlist server-side (blocks direct
- * client writes to `subscription_plan` / `trial_end_date` through THAT
- * function) — but the existing frontend's trial-expiry auto-downgrade in
- * useSubscription.js writes `subscription_plan` via the more permissive
- * direct-entity RLS path instead, which does allow it. `updateProfile()`
- * below mirrors that existing (permissive) frontend behavior unchanged.
- * Flagging for the backend team: confirm whether `PATCH /profile` should
- * allow `subscription_plan` from the client, or whether that write needs
- * its own endpoint — do not silently change frontend behavior either way
- * without confirming first.
+ * Field-level write restrictions: subscription_plan / trial_end_date are
+ * READ-ONLY from the client's perspective as of Milestone 2 — the backend
+ * silently ignores them if sent via POST/PATCH /profile (previously they
+ * were writable, which let any authenticated user self-grant "pro"; closed
+ * in workers/entities/src/handlers/profile.ts). Plan/trial state is now
+ * exclusively managed via src/api/subscription.js's GET /subscription and
+ * friends. useSubscription.js no longer writes to /profile at all.
  */
 import { apiClient, ApiError } from "@/api/client";
 

@@ -1,4 +1,5 @@
 import { fetchDerivCandles, SYMBOL_MAP } from "@/lib/derivWebSocket";
+import { getAuthToken } from "@/api/client";
 
 const WORKER_BASE_URL = "https://synthedge-candles-api.thomsonvr-info.workers.dev";
 
@@ -51,8 +52,15 @@ async function fetchWorkerCandles(indexName, granularitySeconds, fromEpoch, toEp
   url.searchParams.set("from", String(fromEpoch));
   url.searchParams.set("to", String(toEpoch));
 
-  const res = await fetch(url.toString());
+  const token = getAuthToken();
+  const res = await fetch(url.toString(), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   const data = await res.json();
+
+  if (res.status === 401) {
+    throw new Error("Not authenticated — please log in again to load historical data.");
+  }
 
   if (!res.ok) {
     throw new Error(data.error || "Failed to load historical candles");

@@ -1,16 +1,68 @@
+# SynthEdge Candles Worker — Wrangler configuration.
+#
+# AUDIT NOTE (subscription-enforcement milestone): this Worker's D1 binding
+# previously pointed at a separate, unused database ("synthedge-candles-v2").
+# The Worker's code never actually queried it — candle data lives entirely in
+# R2 (BUCKET below) as gzip-compressed monthly files. That binding was dead.
+#
+# Enforcing free/premium access here requires reading `trader_profiles`
+# (subscription_plan, trial_end_date), which lives in the *same* D1 database
+# already used by workers/auth and workers/entities ("synthedge-db"). Rather
+# than standing up a new database (explicitly against project rules) or
+# duplicating subscription state into a second database (would drift from
+# the source of truth), this binding now points at that existing database —
+# reusing existing infrastructure, not creating new infrastructure.
+#
+# Before first deploy in each environment, replace the placeholder
+# database_id / kv id values below with real ones — see workers/auth's
+# wrangler.toml for the full first-deploy walkthrough. The database_id/
+# database_name here must match workers/auth and workers/entities exactly
+# in each environment.
+
 name = "synthedge-candles-api"
-
-main = "src/index.js"
-
-compatibility_date = "2024-09-01"
-
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
 
 [[d1_databases]]
 binding = "DB"
-database_name = "synthedge-candles-v2"
-database_id = "d3211d52-e98b-43fd-a9ba-e0d0ce726d88"
-
+database_name = "synthedge-db"
+database_id = "2a1a6ca1-9fa4-4fe0-84a8-ad3f7822b3ef"
+migrations_dir = "../../db/migrations"
 
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "synthetic-candles"
+
+# --- Staging ---
+[env.staging]
+name = "synthedge-candles-api-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "synthedge-db-staging"
+database_id = "REPLACE_WITH_STAGING_DB_ID"
+migrations_dir = "../../db/migrations"
+
+[[env.staging.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "synthetic-candles-staging"
+
+# --- Production ---
+[env.production]
+name = "synthedge-candles-api-production"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "synthedge-db-production"
+database_id = "REPLACE_WITH_PRODUCTION_DB_ID"
+migrations_dir = "../../db/migrations"
+
+[[env.production.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "synthetic-candles"
+
+# Secrets (must be IDENTICAL to workers/auth and workers/entities so tokens
+# issued by auth verify correctly here):
+#   wrangler secret put JWT_SECRET --env staging
+#   (repeat with --env production)

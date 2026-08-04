@@ -1,12 +1,13 @@
 import type { Env } from '@synthedge/shared';
 
-import { jsonError, jsonOk, d1First, withSecurityHeaders } from '@synthedge/shared';
+import { jsonError, d1First, withSecurityHeaders } from '@synthedge/shared';
 
 import { handleRegister, handleResendOtp, handleVerifyOtp } from './handlers/register';
 import { handleLogin } from './handlers/login';
 import { handleGoogleStart, handleGoogleCallback } from './handlers/google';
 import { handleForgotPassword, handleResetPassword } from './handlers/passwordReset';
 import { handleRefresh, handleLogout, handleMe, handleUpdateMe } from './handlers/tokens';
+import { handleInitTrial } from './handlers/trial';
 import { issueSessionTokens } from './session';
 
 // ---------------------------------------------------------------------------
@@ -126,7 +127,7 @@ async function router(request: Request, env: Env): Promise<Response> {
   // Fire-and-forget from App.jsx on every new signup. Idempotent: a second
   // call for an already-initialized user is a no-op success, never an error.
   if (path === '/users/init-trial' && method === 'POST') {
-    return jsonOk({ ok: true, message: 'Trial initialized' });
+    return handleInitTrial(request, env);
   }
 
 

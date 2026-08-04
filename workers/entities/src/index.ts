@@ -8,11 +8,17 @@
 //   PATCH  /trading-rules/:id   DELETE /trading-rules/:id
 //   GET    /replay-sessions     POST /replay-sessions
 //   GET    /replay-sessions/:id PATCH /replay-sessions/:id DELETE /replay-sessions/:id
+//   GET    /subscription                       (Milestone 2 — centralized plan state;
+//   POST   /subscription/trial/activate          see @synthedge/shared/subscription.ts
+//   POST   /subscription/activate                 for the single source of truth every
+//   POST   /subscription/cancel                    Worker should call instead of
+//   GET    /subscription/payment-records           re-deriving plan/trial logic)
+//   POST   /subscription/payment-records
 //
-// broker/*, billing/*, and uploads/* are NOT implemented yet -- see
-// SYNTHEDGE-COMPLETION-REPORT.md for what those need (Deriv/MT5 sync,
-// Paynow polling, R2 upload signing) before the corresponding frontend
-// api/*.ts modules will work end to end.
+// broker/* and uploads/* are NOT implemented yet -- see
+// SYNTHEDGE-COMPLETION-REPORT.md for what those need (Deriv/MT5 sync, R2
+// upload signing) before the corresponding frontend api/*.ts modules will
+// work end to end.
 
 import type { Env } from "@synthedge/shared";
 import { jsonError, withSecurityHeaders } from "@synthedge/shared";
@@ -27,6 +33,14 @@ import {
   updateReplaySession,
   deleteReplaySession,
 } from "./handlers/replaySessions";
+import {
+  getSubscription,
+  postActivateTrial,
+  postCancel,
+  postActivate,
+  listPaymentRecords,
+  createPaymentRecord,
+} from "./handlers/subscription";
 
 function withCors(response: Response, appBaseUrl: string): Response {
   const headers = new Headers(response.headers);
@@ -99,6 +113,14 @@ async function router(request: Request, env: Env): Promise<Response> {
     if (method === "PATCH") return updateReplaySession(request, env, user, id);
     if (method === "DELETE") return deleteReplaySession(env, user, id);
   }
+
+  // -- /subscription -----------------------------------------------------
+  if (path === "/subscription" && method === "GET") return getSubscription(env, user);
+  if (path === "/subscription/trial/activate" && method === "POST") return postActivateTrial(env, user);
+  if (path === "/subscription/cancel" && method === "POST") return postCancel(env, user);
+  if (path === "/subscription/activate" && method === "POST") return postActivate(request, env, user);
+  if (path === "/subscription/payment-records" && method === "GET") return listPaymentRecords(env, user, url);
+  if (path === "/subscription/payment-records" && method === "POST") return createPaymentRecord(request, env, user);
 
   return jsonError("Not found", 404);
 }

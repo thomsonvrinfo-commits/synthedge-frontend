@@ -62,7 +62,7 @@ function FeatureItem({ text, included }) {
 
 export default function Pricing() {
   const navigate = useNavigate();
-  const { hasFullAccess, isActive, isTrial, isDeveloper, isAdmin, plan } = useSubscription();
+  const { hasFullAccess, isActive, isTrial, isDeveloper, isAdmin, billingCycle } = useSubscription();
 
   const handleMonthly = () => navigate("/checkout/paynow?plan=monthly");
   const handleAnnual = () => navigate("/checkout/paynow?plan=annual");
@@ -71,7 +71,7 @@ export default function Pricing() {
     if (isDeveloper) return "Developer";
     if (isAdmin) return "Admin";
     if (isTrial) return "Trial Active";
-    if (isActive) return plan?.includes("ANNUAL") ? "Annual" : "Monthly";
+    if (isActive) return billingCycle === "yearly" ? "Annual" : "Monthly";
     return null;
   };
   const activePlanLabel = currentPlanLabel();

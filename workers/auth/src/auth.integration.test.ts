@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createFakeD1, createFakeKV } from './test-utils/fakeD1';
+import { createFakeD1, createFakeKV } from '../../shared/src/test-utils/fakeD1';
 import type { Env } from '@synthedge/shared';
 import { d1First } from '@synthedge/shared';
 import { handleRegister, handleVerifyOtp } from './handlers/register';

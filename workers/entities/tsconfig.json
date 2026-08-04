@@ -6,5 +6,6 @@
       "@synthedge/shared/*": ["../shared/src/*"]
     }
   },
-  "include": ["src", "../shared/src"]
+  "include": ["src", "../shared/src"],
+  "exclude": ["src/**/*.integration.test.ts"]
 }

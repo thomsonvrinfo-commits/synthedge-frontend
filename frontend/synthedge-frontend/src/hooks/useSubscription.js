@@ -1,28 +1,34 @@
 /**
  * useSubscription — Single source of truth for subscription/access state.
  *
- * Reads subscription_plan + trial_end_date from TraderProfile.
- * Handles auto-downgrade when trial has expired.
+ * Milestone 2 update: this now reads the centralized GET /subscription
+ * response (see @synthedge/shared's resolveSubscription on the backend)
+ * instead of deriving plan/trial state from TraderProfile fields itself.
+ * The backend already handles trial-window initialization and expiry
+ * transitions server-side on every read, so the client-side auto-downgrade
+ * effect (which used to PATCH subscription_plan directly on /profile) has
+ * been removed entirely — that write is no longer accepted by the backend
+ * anyway (see workers/entities/src/handlers/profile.ts).
  *
- * hasFullAccess  — trial (active) or pro
- * isExpired      — trial ended and not upgraded
- * isTrial        — currently in 7-day trial
- * isActive       — paid pro plan
+ * hasFullAccess  — trial (active) or premium
+ * isExpired      — trial ended (or never started) and not upgraded
+ * isTrial        — currently in the trial window
+ * isActive       — paid premium plan
  * trialDaysLeft  — days remaining in trial (0 if expired/active)
  * isPro          — alias for hasFullAccess
- * isDeveloper    — role === "developer"
+ * isDeveloper    — always false today (no 'developer' role exists in the
+ *                  schema — kept only so existing components destructuring
+ *                  it don't need to change)
  * isAdmin        — role === "admin"
  */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { me as fetchCurrentUser } from "@/api/auth";
-import { getMyProfileAsList, updateProfile } from "@/api/profile";
-import { useMemo, useEffect } from "react";
+import { getSubscription } from "@/api/subscription";
+import { useMemo } from "react";
 
 const PUBLIC_PATHS = /^\/(login|register|forgot-password|reset-password)/;
 
 export function useSubscription() {
-  const queryClient = useQueryClient();
-
   const { data: me } = useQuery({
     queryKey: ["currentUser"],
     queryFn: fetchCurrentUser,
@@ -31,89 +37,54 @@ export function useSubscription() {
     enabled: !window.location.pathname.match(PUBLIC_PATHS),
   });
 
-  // NOTE: auth.me() already returns `role` (admin/developer/user) — no need
-  // for a separate User.filter round-trip.  Removed the ["currentUserRecord"]
-  // query that was firing on every page mount via TrialBanner + AccessGate.
-
   const onCheckoutReturn =
     typeof window !== "undefined" &&
     window.location.pathname.includes("/checkout/paynow") &&
     new URLSearchParams(window.location.search).get("status") === "success";
 
-  const { data: profiles = [], isLoading: profileLoading } = useQuery({
-    queryKey: ["currentProfile", me?.id], // unified key — hits same cache as useCurrentUser + pages
-    queryFn: getMyProfileAsList,
+  const { data: subscription, isLoading } = useQuery({
+    queryKey: ["subscription", me?.id],
+    queryFn: getSubscription,
     enabled: !!me?.id,
-    initialData: [],
-    staleTime: onCheckoutReturn ? 0 : 5 * 60 * 1000,
+    // The backend re-evaluates trial/premium expiry on every read, so a
+    // short staleTime here is what actually drives the "flip to expired
+    // right when it happens" UX — no client-side write needed anymore.
+    staleTime: onCheckoutReturn ? 0 : 60 * 1000,
     refetchOnWindowFocus: onCheckoutReturn,
   });
 
-  const isLoading = profileLoading;
-  const profile = profiles?.[0] || null;
-
-  // Auto-downgrade: if trial has expired, update subscription_plan to "free"
-  useEffect(() => {
-    if (!profile) return;
-    if (profile.subscription_plan !== "trial") return;
-    if (!profile.trial_end_date) return;
-    const expired = new Date(profile.trial_end_date) < new Date();
-    if (expired) {
-      // NOTE: writes subscription_plan directly, matching the existing
-      // (pre-migration) frontend behavior — see the field-restriction note
-      // in api/profile.ts for why this needs backend confirmation.
-      updateProfile({ subscription_plan: "free" }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["currentProfile", me?.id] });
-      });
-    }
-  }, [profile?.id, profile?.subscription_plan, profile?.trial_end_date]);
-
   const result = useMemo(() => {
-    const userRecord = me; // auth.me() already includes role
-    const role = me?.role || "user";
-    const isDeveloper = role === "developer";
-    const isAdmin = role === "admin";
+    const isAdmin = me?.role === "admin";
+    const isDeveloper = false; // no 'developer' role exists in the schema
 
-    // Admin/developer always have full access
-    if (isDeveloper || isAdmin) {
+    if (!subscription) {
       return {
-        hasFullAccess: true, isPro: true, isTrial: false, isActive: true,
+        hasFullAccess: false, isPro: false, isTrial: false, isActive: false,
         isExpired: false, trialDaysLeft: 0, isDeveloper, isAdmin,
-        profile, userRecord, subscriptionStatus: "ACTIVE", plan: "EARLY_ACCESS",
+        userRecord: me, subscriptionStatus: undefined, plan: undefined,
+        billingCycle: null,
       };
     }
 
-    const plan = profile?.subscription_plan || "trial";
-
-    // Calculate trial days remaining
-    let trialDaysLeft = 0;
-    let trialExpired = false;
-    if (profile?.trial_end_date) {
-      const diff = new Date(profile.trial_end_date) - new Date();
-      trialDaysLeft = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-      trialExpired = diff < 0;
-    }
-
-    const isTrial = plan === "trial" && !trialExpired;
-    const isActive = plan === "pro";
-    const isExpired = plan === "free" || (plan === "trial" && trialExpired);
-    const hasFullAccess = isTrial || isActive;
+    const isTrial = subscription.tier === "trial";
+    const isActive = subscription.tier === "premium" && !isAdmin;
+    const isExpired = subscription.tier === "free";
 
     return {
-      hasFullAccess,
-      isPro: hasFullAccess,
+      hasFullAccess: subscription.hasFullAccess,
+      isPro: subscription.hasFullAccess,
       isTrial,
-      isActive,
+      isActive: isActive || isAdmin,
       isExpired,
-      trialDaysLeft,
+      trialDaysLeft: subscription.trialDaysLeft,
       isDeveloper,
       isAdmin,
-      profile,
-      userRecord,
-      subscriptionStatus: isTrial ? "TRIAL" : isActive ? "ACTIVE" : "EXPIRED",
-      plan,
+      userRecord: me,
+      subscriptionStatus: subscription.subscriptionStatus,
+      plan: subscription.tier,
+      billingCycle: subscription.billingCycle,
     };
-  }, [profiles, me]);
+  }, [subscription, me]);
 
   return { ...result, isLoading };
 }

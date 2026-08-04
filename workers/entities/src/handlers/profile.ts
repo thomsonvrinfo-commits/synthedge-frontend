@@ -75,8 +75,12 @@ export async function createProfile(request: Request, env: Env, user: AuthedUser
       body.preferred_sessions ? JSON.stringify(body.preferred_sessions) : null,
       body.preferred_indices ? JSON.stringify(body.preferred_indices) : null,
       body.timezone ?? null,
-      body.subscription_plan ?? "trial",
-      body.trial_end_date ?? null,
+      // subscription_plan / trial_end_date are never taken from the client
+      // (see the SIMPLE_UPDATABLE_FIELDS note below) — always created as
+      // 'trial' with no end date yet; resolveSubscription() initializes the
+      // real window (and keeps this mirror in sync) the first time it's read.
+      "trial",
+      null,
       now,
       now
     );
@@ -95,13 +99,15 @@ const SIMPLE_UPDATABLE_FIELDS = [
   "risk_per_trade",
   "max_daily_trades",
   "timezone",
-  // NOTE: subscription_plan / trial_end_date are intentionally included here
-  // to match the CURRENT (permissive) frontend behavior documented in
-  // api/profile.ts's updateProfile() docstring — useSubscription.js relies on
-  // being able to write subscription_plan directly on trial expiry. Flagged
-  // there as an open question for product/security review, not decided here.
-  "subscription_plan",
-  "trial_end_date",
+  // NOTE (Milestone 2 — subscription centralization): subscription_plan and
+  // trial_end_date used to be writable here, mirroring a permissive
+  // (and exploitable — any authenticated user could self-grant "pro" with a
+  // single PATCH /profile call) frontend behavior. Plan/trial state is now
+  // exclusively server-computed by @synthedge/shared's resolveSubscription()
+  // / activatePremium() / cancelPremium(), which also keep this table's
+  // subscription_plan/trial_end_date columns in sync as a read-only mirror.
+  // Deliberately NOT in this list anymore — do not re-add without routing
+  // the write through the subscription module.
 ] as const;
 
 export async function updateProfile(request: Request, env: Env, user: AuthedUser): Promise<Response> {
