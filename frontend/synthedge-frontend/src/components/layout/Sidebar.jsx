@@ -42,7 +42,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className={cn("p-4 flex items-center gap-3 border-b border-sidebar-border", collapsed ? "justify-center" : "")}>
         <img
-          src="/favicon.svg"
+          src="/synthedge-logo.png"
           alt="SynthEdge"
           className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
         />

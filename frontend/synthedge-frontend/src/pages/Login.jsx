@@ -48,7 +48,7 @@ window.location.href = "/";
         {/* Logo */}
         <div className="text-center">
           <img
-            src="/favicon.svg"
+            src="/synthedge-logo.png"
             alt="SynthEdge"
             className="w-16 h-16 rounded-full object-cover mx-auto mb-4"
           />
