@@ -1,9 +1,3 @@
-# SynthEdge Entities Worker — Wrangler configuration.
-# Shares the same D1 database and JWT_SECRET as the auth Worker (tokens
-# issued by workers/auth must validate here). Replace placeholder IDs before
-# first deploy in each environment; see workers/auth/wrangler.toml for the
-# full first-deploy walkthrough (create D1/KV, run migrations, set secrets).
-
 name = "synthedge-entities"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
@@ -19,26 +13,24 @@ migrations_dir = "../../db/migrations"
 binding = "KV"
 id = "9ac4b377eea944d78e4c789f6412961f"
 
-# Screenshot storage (Milestone 3). Dedicated bucket, separate from
-# candles-worker's "synthetic-candles" bucket — different data, different
-# lifecycle, different worker owns each. Create with:
-#   wrangler r2 bucket create synthedge-uploads
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "synthedge-uploads"
 
-# Automated broker sync (Milestone 4). Hourly is a starting point — tune to
-# your Deriv/MetaAPI rate limits and how fresh you need synced trades to be.
-# See src/index.ts's scheduled() export and src/broker/sync.ts.
 [triggers]
 crons = ["0 * * * *"]
 
-# --- Staging ---
+[vars]
+APP_BASE_URL = "https://synthedgeapp.co.zw"
+
 [env.staging]
 name = "synthedge-entities-staging"
 
 [env.staging.triggers]
 crons = ["0 * * * *"]
+
+[env.staging.vars]
+APP_BASE_URL = "https://synthedgeapp.co.zw"
 
 [[env.staging.d1_databases]]
 binding = "DB"
@@ -54,12 +46,11 @@ id = "REPLACE_WITH_STAGING_KV_ID"
 binding = "BUCKET"
 bucket_name = "synthedge-uploads-staging"
 
-# --- Production ---
 [env.production]
 name = "synthedge-entities-production"
 
-[env.production.triggers]
-crons = ["0 * * * *"]
+[env.production.vars]
+APP_BASE_URL = "https://synthedgeapp.co.zw"
 
 [[env.production.d1_databases]]
 binding = "DB"
@@ -75,19 +66,19 @@ id = "REPLACE_WITH_PRODUCTION_KV_ID"
 binding = "BUCKET"
 bucket_name = "synthedge-uploads"
 
-# Secrets (set via CLI, must match the values used for workers/auth):
-#   wrangler secret put JWT_SECRET --env staging
-#   (repeat with --env production)
-#
-# Broker sync (Milestone 4) — required before /broker/connect/* or the
-# hourly cron sync will work:
-#   wrangler secret put BROKER_ENC_KEY --env staging   # openssl rand -base64 32
-#   wrangler secret put METAAPI_TOKEN --env staging    # from metaapi.cloud dashboard
-#   (repeat with --env production)
-#
-# AI Trading Coach (Phase 4) — required before /ai/conversations/*/messages
-# will work (returns 503 without it):
-#   wrangler secret put OPENAI_API_KEY --env staging   # from platform.openai.com
-#   (repeat with --env production)
-# Optional: set OPENAI_MODEL as a [vars] entry per env to override the
-# default (gpt-4o-mini).
+# Secrets are set through Wrangler CLI.
+# wrangler secret put JWT_SECRET --env staging
+# wrangler secret put JWT_SECRET --env production
+
+# Broker sync:
+# wrangler secret put BROKER_ENC_KEY --env staging
+# wrangler secret put METAAPI_TOKEN --env staging
+# Repeat for production.
+
+# AI Trading Coach:
+# wrangler secret put OPENAI_API_KEY --env staging
+# wrangler secret put OPENAI_API_KEY --env production
+
+# Optional:
+# OPENAI_MODEL can be configured per environment.
+# Default: gpt-4o-mini
