@@ -3,7 +3,22 @@
 // raw Trade / Trade[] bodies, not wrapped in an {ok, ...} envelope — the
 // frontend passes these straight into normalizeTrades()/array methods.
 import type { Env } from "@synthedge/shared";
-import { jsonError, d1First, d1All, d1Run, nowIso, ulid } from "@synthedge/shared";
+import { jsonError, d1First, d1All, d1Run, nowIso, ulid, extractOwnUploadKey } from "@synthedge/shared";
+
+const SCREENSHOT_FIELDS = ["screenshot_url", "screenshot_before", "screenshot_during", "screenshot_after"] as const;
+
+/** Best-effort R2 delete for a screenshot field's old value — never throws or blocks the D1 write. */
+async function deleteOwnUploadIfAny(env: Env, request: Request, url: string | null | undefined): Promise<void> {
+  if (!env.BUCKET) return;
+  const origin = new URL(request.url).origin;
+  const key = extractOwnUploadKey(url, origin);
+  if (!key) return;
+  try {
+    await env.BUCKET.delete(key);
+  } catch (err) {
+    console.error("[trades] failed to delete orphaned upload", key, err);
+  }
+}
 
 interface AuthedUser {
   id: string;
@@ -140,9 +155,9 @@ const JSON_TRADE_FIELDS = new Set(["rule_violations", "custom_fields"]);
 
 export async function updateTrade(request: Request, env: Env, user: AuthedUser, tradeId: string): Promise<Response> {
   try {
-    const existing = await d1First(
+    const existing = await d1First<Record<string, unknown>>(
       env.DB,
-      `SELECT id FROM trades WHERE id = ? AND created_by_id = ?`,
+      `SELECT id, screenshot_url, screenshot_before, screenshot_during, screenshot_after FROM trades WHERE id = ? AND created_by_id = ?`,
       tradeId,
       user.id
     );
@@ -181,6 +196,20 @@ export async function updateTrade(request: Request, env: Env, user: AuthedUser, 
     );
 
     const updated = await d1First(env.DB, `SELECT * FROM trades WHERE id = ?`, tradeId);
+
+    // Best-effort cleanup: if a screenshot field was replaced (or cleared),
+    // delete the old R2 object so uploads don't orphan indefinitely. Never
+    // blocks or fails the response — the trade write already succeeded.
+    for (const field of SCREENSHOT_FIELDS) {
+      if (field in body) {
+        const oldValue = existing[field] as string | null | undefined;
+        const newValue = body[field] ?? null;
+        if (oldValue && oldValue !== newValue) {
+          await deleteOwnUploadIfAny(env, request, oldValue);
+        }
+      }
+    }
+
     return Response.json(updated);
   } catch (error: any) {
     console.error("updateTrade error:", error);
@@ -188,8 +217,15 @@ export async function updateTrade(request: Request, env: Env, user: AuthedUser, 
   }
 }
 
-export async function deleteTrade(env: Env, user: AuthedUser, tradeId: string): Promise<Response> {
+export async function deleteTrade(request: Request, env: Env, user: AuthedUser, tradeId: string): Promise<Response> {
   try {
+    const existing = await d1First<Record<string, unknown>>(
+      env.DB,
+      `SELECT screenshot_url, screenshot_before, screenshot_during, screenshot_after FROM trades WHERE id = ? AND created_by_id = ?`,
+      tradeId,
+      user.id
+    );
+
     const result = await d1Run(
       env.DB,
       `DELETE FROM trades WHERE id = ? AND created_by_id = ?`,
@@ -199,6 +235,13 @@ export async function deleteTrade(env: Env, user: AuthedUser, tradeId: string): 
     if (!result.meta || (result.meta as any).changes === 0) {
       return jsonError("Trade not found", 404);
     }
+
+    if (existing) {
+      for (const field of SCREENSHOT_FIELDS) {
+        await deleteOwnUploadIfAny(env, request, existing[field] as string | null | undefined);
+      }
+    }
+
     return Response.json({});
   } catch (error: any) {
     console.error("deleteTrade error:", error);

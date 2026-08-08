@@ -29,7 +29,7 @@ import type { Env } from "@synthedge/shared";
 import { signAccessToken, ulid, nowIso, activatePremium } from "@synthedge/shared";
 import worker from "./index";
 
-const SCHEMA_PATH = path.resolve(__dirname, "../../../db/migrations/0001_init.sql");
+const SCHEMA_PATH = path.resolve(__dirname, "../../../db/migrations");
 const JWT_SECRET = "test-secret-do-not-use-in-prod";
 const SYMBOL = "Volatility 10 Index";
 const FOLDER = "volatility-10";

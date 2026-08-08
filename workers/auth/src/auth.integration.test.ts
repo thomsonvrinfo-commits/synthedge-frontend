@@ -8,7 +8,7 @@ import { handleRefresh, handleLogout, handleMe } from './handlers/tokens';
 import { issueSessionTokens } from './session';
 import path from 'node:path';
 
-const SCHEMA_PATH = path.resolve(__dirname, '../../../db/migrations/0001_init.sql');
+const SCHEMA_PATH = path.resolve(__dirname, '../../../db/migrations');
 
 function makeEnv(): Env {
   return {

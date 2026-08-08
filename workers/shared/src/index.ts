@@ -7,3 +7,4 @@ export * from './errors';
 export * from './brevo';
 export * from './security';
 export * from './subscription';
+export * from './uploads';

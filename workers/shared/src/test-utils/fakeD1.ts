@@ -11,14 +11,34 @@
 // its own drifting copy — originally lived only under workers/auth.
 
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const { DatabaseSync } = require('node:sqlite') as typeof import('node:sqlite');
 
-export function createFakeD1(schemaPath: string): D1Database {
+/**
+ * Accepts a migrations directory (every *.sql file in it applied in
+ * alphabetical order, e.g. 0001_..., 0002_... — same effect as D1's own
+ * `migrations_dir`), a single .sql file, or an explicit list of files.
+ * Passing the directory is preferred so a new migration is automatically
+ * picked up by every Worker's tests without editing each test file.
+ */
+export function createFakeD1(schemaPath: string | string[]): D1Database {
   const db = new DatabaseSync(':memory:');
-  db.exec(readFileSync(schemaPath, 'utf8'));
+
+  const paths = Array.isArray(schemaPath) ? schemaPath : [schemaPath];
+  const files = paths.flatMap((p) =>
+    statSync(p).isDirectory()
+      ? readdirSync(p)
+          .filter((f) => f.endsWith('.sql'))
+          .sort()
+          .map((f) => join(p, f))
+      : [p]
+  );
+  for (const file of files) {
+    db.exec(readFileSync(file, 'utf8'));
+  }
 
   function makeStatement(query: string, boundArgs: unknown[]) {
     const stmt = db.prepare(query);
@@ -84,25 +104,46 @@ export function createFakeKV(): KVNamespace {
 }
 
 /**
- * A minimal R2Bucket-shaped in-memory adapter, implementing only `.get()`
- * (what the candles Worker actually reads) plus a `__put` test helper to
- * seed fixture objects. Test-only; never imported by production code.
+ * A minimal R2Bucket-shaped in-memory adapter. Supports the real
+ * `.put()`/`.get()`/`.delete()` surface (needed by the uploads Worker
+ * routes) plus a `__put` shortcut for tests that just need to seed a raw
+ * buffer directly (candles-worker's fixture data). Test-only; never
+ * imported by production code.
  */
 export function createFakeR2(): R2Bucket & { __put: (key: string, buffer: ArrayBuffer) => void } {
-  const store = new Map<string, ArrayBuffer>();
+  interface StoredObject {
+    buffer: ArrayBuffer;
+    contentType?: string;
+  }
+  const store = new Map<string, StoredObject>();
 
   const bucket = {
     async get(key: string) {
-      const buffer = store.get(key);
-      if (!buffer) return null;
+      const stored = store.get(key);
+      if (!stored) return null;
       return {
         async arrayBuffer() {
-          return buffer;
+          return stored.buffer;
+        },
+        get body() {
+          return new Blob([stored.buffer]).stream();
+        },
+        writeHttpMetadata(headers: Headers) {
+          if (stored.contentType) headers.set("Content-Type", stored.contentType);
         },
       } as unknown as R2ObjectBody;
     },
+    async put(key: string, value: ArrayBuffer | ArrayBufferView, options?: R2PutOptions) {
+      const buffer =
+        value instanceof ArrayBuffer ? value : (value as ArrayBufferView).buffer.slice(0) as ArrayBuffer;
+      store.set(key, { buffer, contentType: options?.httpMetadata && "contentType" in options.httpMetadata ? (options.httpMetadata as { contentType?: string }).contentType : undefined });
+      return null as unknown as R2Object;
+    },
+    async delete(key: string) {
+      store.delete(key);
+    },
     __put(key: string, buffer: ArrayBuffer) {
-      store.set(key, buffer);
+      store.set(key, { buffer });
     },
   };
 

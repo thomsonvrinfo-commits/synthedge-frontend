@@ -15,6 +15,10 @@ export interface Env {
   BROKER_ENC_KEY?: string;         // base64, 32 bytes, AES-GCM
   METAAPI_TOKEN?: string;
 
+  // AI Trading Coach
+  OPENAI_API_KEY?: string;
+  OPENAI_MODEL?: string;           // default: gpt-4o-mini (see ai/llm/openai.ts)
+
   // Paynow
   PAYNOW_INTEGRATION_ID?: string;
   PAYNOW_INTEGRATION_KEY?: string;

@@ -23,6 +23,7 @@ import Journal from '@/pages/Journal';
 import Backtest from '@/pages/Backtest';
 import ReplayHub from '@/pages/ReplayHub';
 import Assistant from '@/pages/Assistant';
+import Coach from '@/pages/Coach';
 import Settings from '@/pages/Settings';
 import Upgrade from '@/pages/Upgrade';
 import Onboarding from '@/pages/Onboarding';
@@ -121,6 +122,7 @@ const AuthenticatedApp = () => {
           <Route path="/backtest" element={<ReplayHub />} />
           <Route path="/backtest/replay" element={<Backtest />} />
           <Route path="/assistant" element={<Assistant />} />
+          <Route path="/coach" element={<Coach />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/upgrade" element={<Upgrade />} />
           <Route path="/pricing" element={<Pricing />} />

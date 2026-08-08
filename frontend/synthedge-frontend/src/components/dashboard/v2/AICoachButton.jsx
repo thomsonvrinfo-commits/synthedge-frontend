@@ -37,7 +37,7 @@ export default function AICoachButton() {
             {QUICK_QUESTIONS.map((q) => (
               <Link
                 key={q}
-                to={`/assistant`}
+                to={`/coach?q=${encodeURIComponent(q)}`}
                 onClick={() => setOpen(false)}
                 className="flex items-center gap-2 w-full p-2 rounded-xl bg-secondary/50 hover:bg-primary/10 hover:text-primary text-xs text-left transition-colors group"
               >
@@ -46,7 +46,7 @@ export default function AICoachButton() {
               </Link>
             ))}
           </div>
-          <Link to="/assistant">
+          <Link to="/coach">
             <button className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
               <Send className="w-3.5 h-3.5" /> Open Full AI Coach
             </button>

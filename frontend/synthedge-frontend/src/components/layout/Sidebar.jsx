@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, BookOpen, PlayCircle, Brain,
+  LayoutDashboard, BookOpen, PlayCircle, Brain, Sparkles,
   ChevronLeft, ChevronRight, LogOut,
   Settings, Crown, Plus, BarChart3
 } from "lucide-react";
@@ -16,7 +16,8 @@ const navItems = [
   { path: "/", icon: LayoutDashboard, label: "Dashboard" },
   { path: "/journal", icon: BookOpen, label: "Journal" },
   { path: "/backtest", icon: PlayCircle, label: "Replay" },
-  { path: "/assistant", icon: Brain, label: "AI" },
+  { path: "/coach", icon: Sparkles, label: "Coach" },
+  { path: "/assistant", icon: Brain, label: "Intelligence" },
   { path: "/settings", icon: Settings, label: "Settings" },
   { path: "/performance", icon: BarChart3, label: "Performance" },
 ];

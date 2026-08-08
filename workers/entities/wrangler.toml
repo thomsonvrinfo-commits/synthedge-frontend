@@ -19,9 +19,26 @@ migrations_dir = "../../db/migrations"
 binding = "KV"
 id = "9ac4b377eea944d78e4c789f6412961f"
 
+# Screenshot storage (Milestone 3). Dedicated bucket, separate from
+# candles-worker's "synthetic-candles" bucket — different data, different
+# lifecycle, different worker owns each. Create with:
+#   wrangler r2 bucket create synthedge-uploads
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "synthedge-uploads"
+
+# Automated broker sync (Milestone 4). Hourly is a starting point — tune to
+# your Deriv/MetaAPI rate limits and how fresh you need synced trades to be.
+# See src/index.ts's scheduled() export and src/broker/sync.ts.
+[triggers]
+crons = ["0 * * * *"]
+
 # --- Staging ---
 [env.staging]
 name = "synthedge-entities-staging"
+
+[env.staging.triggers]
+crons = ["0 * * * *"]
 
 [[env.staging.d1_databases]]
 binding = "DB"
@@ -33,9 +50,16 @@ migrations_dir = "../../db/migrations"
 binding = "KV"
 id = "REPLACE_WITH_STAGING_KV_ID"
 
+[[env.staging.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "synthedge-uploads-staging"
+
 # --- Production ---
 [env.production]
 name = "synthedge-entities-production"
+
+[env.production.triggers]
+crons = ["0 * * * *"]
 
 [[env.production.d1_databases]]
 binding = "DB"
@@ -47,6 +71,23 @@ migrations_dir = "../../db/migrations"
 binding = "KV"
 id = "REPLACE_WITH_PRODUCTION_KV_ID"
 
+[[env.production.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "synthedge-uploads"
+
 # Secrets (set via CLI, must match the values used for workers/auth):
 #   wrangler secret put JWT_SECRET --env staging
 #   (repeat with --env production)
+#
+# Broker sync (Milestone 4) — required before /broker/connect/* or the
+# hourly cron sync will work:
+#   wrangler secret put BROKER_ENC_KEY --env staging   # openssl rand -base64 32
+#   wrangler secret put METAAPI_TOKEN --env staging    # from metaapi.cloud dashboard
+#   (repeat with --env production)
+#
+# AI Trading Coach (Phase 4) — required before /ai/conversations/*/messages
+# will work (returns 503 without it):
+#   wrangler secret put OPENAI_API_KEY --env staging   # from platform.openai.com
+#   (repeat with --env production)
+# Optional: set OPENAI_MODEL as a [vars] entry per env to override the
+# default (gpt-4o-mini).

@@ -9,7 +9,7 @@ import type { Env } from "./types";
 import { d1First, d1Run, nowIso, ulid } from "./db";
 import { resolveSubscription, activateTrial, activatePremium, cancelPremium } from "./subscription";
 
-const SCHEMA_PATH = path.resolve(__dirname, "../../../db/migrations/0001_init.sql");
+const SCHEMA_PATH = path.resolve(__dirname, "../../../db/migrations");
 
 function makeEnv(): Env {
   return {

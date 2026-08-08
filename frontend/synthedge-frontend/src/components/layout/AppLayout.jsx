@@ -9,7 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 // is an ordinary scrollable page and must keep overflow-auto or its content
 // (e.g. the New Session form) gets clipped with no way to scroll to it,
 // especially on short mobile viewports).
-const FULL_HEIGHT_ROUTES = ["/backtest/replay"];
+const FULL_HEIGHT_ROUTES = ["/backtest/replay", "/coach"];
 
 export default function AppLayout() {
   const location = useLocation();
