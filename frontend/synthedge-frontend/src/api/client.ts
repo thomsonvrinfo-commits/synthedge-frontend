@@ -30,7 +30,7 @@ const AUTH_API_URL =
 
 const ENTITY_API_URL =
   (import.meta.env?.VITE_ENTITY_API_URL as string | undefined) ||
-  "https://synthedge-entities.thomsonvr-info.workers.dev";
+  "https://synthedge-entities-production.thomsonvr-info.workers.dev";
 
 const TOKEN_STORAGE_KEY = "synthedge_access_token";
 
