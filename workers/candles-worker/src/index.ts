@@ -34,6 +34,7 @@
 
 import type { Env } from "@synthedge/shared";
 import { extractBearerToken, verifyAccessToken, jsonError, resolveSubscription } from "@synthedge/shared";
+import { parquetReadObjects } from "hyparquet";
 
 const VERSION = "SYNTHEDGE_WORKER_V3_SUBSCRIPTION_ENFORCED";
 
@@ -104,10 +105,26 @@ async function loadCandles(
     const file = await env.BUCKET!.get(key);
 
     if (file) {
-      const buffer = await file.arrayBuffer();
-      const text = await gunzip(buffer);
-      candles.push(...(JSON.parse(text) as RawCandle[]));
-    }
+  const buffer = await file.arrayBuffer();
+
+  const rows = await parquetReadObjects({
+    file: buffer,
+  });
+
+  candles.push(
+    ...rows.map((row) => ({
+      timestamp:
+  row.timestamp instanceof Date
+    ? Math.floor(row.timestamp.getTime() / 1000)
+    : Number(row.timestamp),
+      open: Number(row.open),
+      high: Number(row.high),
+      low: Number(row.low),
+      close: Number(row.close),
+      volume: Number(row.tick_volume),
+    }))
+  );
+}
 
     current.setUTCMonth(current.getUTCMonth() + 1);
   }
@@ -134,10 +151,6 @@ function aggregateCandles(candles: RawCandle[], seconds: number): RawCandle[] {
   return Object.values(groups).sort((a, b) => a.timestamp - b.timestamp);
 }
 
-async function gunzip(buffer: ArrayBuffer): Promise<string> {
-  const stream = new Blob([buffer]).stream().pipeThrough(new DecompressionStream("gzip"));
-  return await new Response(stream).text();
-}
 
 async function handleCandles(request: Request, env: Env, url: URL): Promise<Response> {
   // --- Auth: every /candles request must carry a valid access token. ---

@@ -23,8 +23,13 @@
 //      state exactly — it has no subscription logic of its own left.
 
 import { describe, it, expect, beforeEach } from "vitest";
+import { parquetWriteBuffer } from "hyparquet-writer";
 import path from "node:path";
-import { createFakeD1, createFakeR2, createFakeKV, gzipJson } from "../../shared/src/test-utils/fakeD1";
+import {
+  createFakeD1,
+  createFakeR2,
+  createFakeKV
+} from "../../shared/src/test-utils/fakeD1";
 import type { Env } from "@synthedge/shared";
 import { signAccessToken, ulid, nowIso, activatePremium } from "@synthedge/shared";
 import worker from "./index";
@@ -64,17 +69,73 @@ function generateM1Candles(endEpoch: number, count: number): RawCandle[] {
 }
 
 /** Seeds the fake R2 bucket exactly like the real pipeline: gzip JSON, grouped by UTC month. */
-async function seedR2(env: Env, folder: string, candles: RawCandle[]): Promise<void> {
+async function seedR2(
+  env: Env,
+  folder: string,
+  candles: RawCandle[]
+): Promise<void> {
   const byMonth = new Map<string, RawCandle[]>();
+
   for (const c of candles) {
-    const month = new Date(c.timestamp * 1000).toISOString().slice(0, 7);
-    if (!byMonth.has(month)) byMonth.set(month, []);
+    const month = new Date(c.timestamp * 1000)
+      .toISOString()
+      .slice(0, 7);
+
+    if (!byMonth.has(month)) {
+      byMonth.set(month, []);
+    }
+
     byMonth.get(month)!.push(c);
   }
-  const r2 = env.BUCKET as unknown as { __put: (key: string, buffer: ArrayBuffer) => void };
+
+  const r2 = env.BUCKET as unknown as {
+    __put: (key: string, buffer: ArrayBuffer) => void;
+  };
+
   for (const [month, monthCandles] of byMonth) {
     const key = `${folder}/m1/${month}.parquet`;
-    r2.__put(key, await gzipJson(monthCandles));
+
+   const buffer = parquetWriteBuffer({
+  columnData: [
+    {
+      name: "timestamp",
+      data: monthCandles.map((c) => new Date(c.timestamp * 1000)),
+      type: "TIMESTAMP",
+    },
+    {
+      name: "open",
+      data: monthCandles.map((c) => c.open),
+      type: "DOUBLE",
+    },
+    {
+      name: "high",
+      data: monthCandles.map((c) => c.high),
+      type: "DOUBLE",
+    },
+    {
+      name: "low",
+      data: monthCandles.map((c) => c.low),
+      type: "DOUBLE",
+    },
+    {
+      name: "close",
+      data: monthCandles.map((c) => c.close),
+      type: "DOUBLE",
+    },
+    {
+      name: "tick_volume",
+      data: monthCandles.map((c) => BigInt(c.volume)),
+      type: "INT64",
+    },
+    {
+      name: "spread",
+      data: monthCandles.map(() => BigInt(1000)),
+      type: "INT64",
+    },
+  ],
+});
+
+    r2.__put(key, buffer);
   }
 }
 
