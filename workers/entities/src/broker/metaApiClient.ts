@@ -1,5 +1,4 @@
-// MetaAPI (metaapi.cloud) REST client for MT5 account provisioning and
-// trade history.
+// MetaAPI (metaapi.cloud) REST client for MT5 account provisioning and trade history.
 //
 // Uses MetaApi's current Provisioning API and Client REST API.
 // Authentication is performed with the "auth-token" header.
