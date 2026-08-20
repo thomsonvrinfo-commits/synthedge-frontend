@@ -26,7 +26,7 @@
 
 const AUTH_API_URL =
   (import.meta.env?.VITE_AUTH_API_URL as string | undefined) ||
-  "https://synthedge-auth.thomsonvr-info.workers.dev";
+  "https://auth.synthedgeapp.co.zw";
 
 const ENTITY_API_URL =
   (import.meta.env?.VITE_ENTITY_API_URL as string | undefined) ||
@@ -95,6 +95,48 @@ function notifyUnauthorized() {
   });
 }
 
+// ─── Refresh-on-401 ─────────────────────────────────────────────────────────
+// Uses the EXISTING POST /auth/refresh endpoint (workers/auth/src/handlers/
+// tokens.ts) — reads the HttpOnly `se_refresh` cookie server-side and rotates
+// it, returning a new short-lived access token. This is the only refresh
+// mechanism in the app; nothing else should implement a second one.
+//
+// A single in-flight refresh is shared across every caller (dedupe), so if
+// several requests hit 401 at once (e.g. replay autosave + a background
+// prefetch), only one POST /auth/refresh is sent. Every 401 gets at most one
+// refresh + one retry — never a loop.
+
+const REFRESH_PATH = "/auth/refresh";
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function performRefresh(): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      try {
+        const res = await fetch(buildUrl(REFRESH_PATH), {
+          method: "POST",
+          credentials: "include", // required: sends the HttpOnly se_refresh cookie
+        });
+        const text = await res.text();
+        const data = text ? safeJsonParse(text) : null;
+        if (!res.ok) return null;
+        const token = (data as { accessToken?: string } | null)?.accessToken;
+        if (!token) return null;
+        setAuthToken(token);
+        return token;
+      } catch {
+        return null;
+      } finally {
+        // Allow the next 401 (after this refresh resolves) to trigger a new
+        // refresh attempt rather than reusing a stale settled promise.
+        refreshInFlight = null;
+      }
+    })();
+  }
+  return refreshInFlight;
+}
+
 // ─── Core request ───────────────────────────────────────────────────────────
 
 export interface RequestOptions {
@@ -104,6 +146,8 @@ export interface RequestOptions {
   /** Set false to skip attaching the Authorization header (public endpoints). */
   auth?: boolean;
   signal?: AbortSignal;
+  /** Internal: set true on the retry attempt after a refresh, to prevent loops. */
+  _isRetry?: boolean;
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
@@ -131,7 +175,7 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, query, auth = true, signal } = options;
+  const { method = "GET", body, query, auth = true, signal, _isRetry = false } = options;
 
   const headers: Record<string, string> = {};
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
@@ -150,12 +194,30 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers,
     body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
     signal,
+    credentials: "include", // send/receive the HttpOnly se_refresh cookie (same-site as of auth.synthedgeapp.co.zw)
   });
 
   const text = await res.text();
   const data = text ? safeJsonParse(text) : null;
 
   if (!res.ok) {
+    // Refresh-once-and-retry: only for authenticated requests that aren't
+    // already a retry, and never for the refresh/login endpoints themselves
+    // (which would recurse). If refresh fails, fall through to the normal
+    // error path below, which notifies AuthContext and logs the user out.
+    if (
+      res.status === 401 &&
+      auth &&
+      !_isRetry &&
+      path !== REFRESH_PATH &&
+      path !== "/auth/login"
+    ) {
+      const newToken = await performRefresh();
+      if (newToken) {
+        return request<T>(path, { ...options, _isRetry: true });
+      }
+    }
+
     if (res.status === 401) notifyUnauthorized();
     throw new ApiError({
       status: res.status,

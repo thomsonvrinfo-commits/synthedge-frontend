@@ -58,19 +58,29 @@ id = "REPLACE_WITH_STAGING_KV_ID"
 name = "synthedge-auth-production"
 
 [env.production.vars]
-APP_BASE_URL = "https://app.synthedge.app"
+APP_BASE_URL = "https://synthedgeapp.co.zw"
 ACCESS_TOKEN_TTL_MIN = "15"
 REFRESH_TOKEN_TTL_DAYS = "30"
+
+# Same-site as the frontend (synthedgeapp.co.zw) so the HttpOnly,
+# SameSite=Strict `se_refresh` cookie set in session.ts / tokens.ts can
+# actually be sent back on POST /auth/refresh. Requires a Custom Domain
+# named "auth.synthedgeapp.co.zw" to be added to this Worker in the
+# Cloudflare dashboard (Workers & Pages -> synthedge-auth-production ->
+# Domains & Routes) before this route takes effect.
+[[env.production.routes]]
+pattern = "auth.synthedgeapp.co.zw"
+custom_domain = true
 
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "synthedge-db-production"
-database_id = "REPLACE_WITH_PRODUCTION_DB_ID"
+database_id = "f147deb7-5743-4880-8c90-b47c2d424538"
 migrations_dir = "../../db/migrations"
 
 [[env.production.kv_namespaces]]
 binding = "KV"
-id = "REPLACE_WITH_PRODUCTION_KV_ID"
+id = "9ac4b377eea944d78e4c789f6412961f"
 
 # Secrets (never stored in this file — set via CLI, one per environment):
 #   wrangler secret put JWT_SECRET --env staging
