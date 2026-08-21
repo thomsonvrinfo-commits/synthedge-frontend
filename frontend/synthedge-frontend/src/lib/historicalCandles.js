@@ -1,8 +1,7 @@
 import { fetchDerivCandles, SYMBOL_MAP } from "@/lib/derivWebSocket";
 import { getAuthToken } from "@/api/client";
 
-const WORKER_BASE_URL = "https://synthedge-candles-api.thomsonvr-info.workers.dev";
-
+const WORKER_BASE_URL = "https://synthedge-candles-api-production.thomsonvr-info.workers.dev";
 const SECONDS_TO_TIMEFRAME = {
   60: "M1",
   300: "M5",
