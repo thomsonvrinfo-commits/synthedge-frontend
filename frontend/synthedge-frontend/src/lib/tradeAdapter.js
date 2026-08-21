@@ -55,7 +55,7 @@ export function normalizeTrade(rawTrade = {}) {
   const symbol = rawTrade.symbol || rawTrade.synthetic_index || rawTrade.index;
   const setup = rawTrade.setup || rawTrade.strategy;
   const rr = numberOrUndefined(rawTrade.rr ?? rawTrade.risk_reward_ratio);
-  const pl = numberOrUndefined(rawTrade.pl ?? rawTrade.profit_loss);
+  const pl = numberOrUndefined(   rawTrade.pl ??   rawTrade.profit_loss ??   rawTrade.pnl ??   rawTrade.profit );
 
   // plan_followed is a string enum: "Fully" | "Partially" | "No" (or undefined)
   // Normalize legacy boolean-style values gracefully
@@ -95,7 +95,7 @@ export function normalizeTrade(rawTrade = {}) {
     synthetic_index: rawTrade.synthetic_index || symbol,
     strategy: rawTrade.strategy || setup,
     risk_reward_ratio: rawTrade.risk_reward_ratio ?? rr,
-    profit_loss: rawTrade.profit_loss ?? pl,
+    profit_loss:   rawTrade.profit_loss ??   rawTrade.pnl ??   rawTrade.profit ??   pl,
     trade_date: rawTrade.trade_date || createdAt,
   };
 }
@@ -136,7 +136,7 @@ export function toTradeSavePayload(trade = {}) {
     synthetic_index: normalized.synthetic_index,
     strategy: normalized.strategy,
     risk_reward_ratio: normalized.risk_reward_ratio,
-    profit_loss: normalized.profit_loss,
+    profit_loss: normalized.profit_loss ?? normalized.pl,
     trade_date: normalized.trade_date,
   };
 }
