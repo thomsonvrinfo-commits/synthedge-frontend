@@ -17,7 +17,7 @@ function groupStats(trades, key) {
     map[name].total += 1;
     if (trade.result === "Win") map[name].wins += 1;
     if (trade.result === "Loss") map[name].losses += 1;
-    map[name].pl += trade.pl || 0;
+    map[name].pl += trade.pl ?? trade.profit_loss ?? trade.pnl ?? 0;
     if (trade.rr !== undefined) {
       map[name].rr += trade.rr;
       map[name].rrs.push(trade.rr);
@@ -45,7 +45,7 @@ export function computeEquityCurve(trades = []) {
       // Use local date parts to avoid UTC-shift moving trades to wrong calendar day
       const _d = new Date(trade.createdAt);
       const key = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}`;
-      const value = trade.pl ?? trade.rr ?? 0;
+      const value = trade.pl ?? trade.profit_loss ?? trade.pnl ?? 0;
       if (!byDate[key]) byDate[key] = { date: key, dailyPL: 0, dailyRR: 0, count: 0 };
       byDate[key].dailyPL += trade.pl || 0;
       byDate[key].dailyRR += trade.rr || 0;
@@ -91,7 +91,10 @@ export function computeAnalytics(rawTrades = []) {
   const wins = trades.filter(t => t.result === "Win").length;
   const losses = trades.filter(t => t.result === "Loss").length;
   const be = trades.filter(t => t.result === "Breakeven").length;
-  const totalPL = trades.reduce((sum, trade) => sum + (trade.pl || 0), 0);
+  const totalPL = trades.reduce(
+  (sum, trade) => sum + (trade.pl ?? trade.profit_loss ?? trade.pnl ?? 0),
+  0
+);
   const netRR = trades.reduce((sum, trade) => sum + (trade.rr || 0), 0);
   const rrTrades = trades.filter(t => t.rr !== undefined);
   const avgRR = rrTrades.length ? netRR / rrTrades.length : 0;
@@ -103,7 +106,10 @@ export function computeAnalytics(rawTrades = []) {
   // Breakevens count toward total but not toward win/loss averages.
   const winTrades = trades.filter(t => t.result === "Win");
   const lossTrades = trades.filter(t => t.result === "Loss");
-  const avgWinR = winTrades.length ? winTrades.reduce((s, t) => s + (t.rr ?? (t.pl ?? 0)), 0) / winTrades.length : 0;
+  const avgWinR =
+winTrades.length
+? winTrades.reduce((s,t)=>s+(t.rr ?? 0),0)/winTrades.length
+:0;
   const avgLossR = lossTrades.length ? Math.abs(lossTrades.reduce((s, t) => s + (t.rr ?? (t.pl ?? 0)), 0) / lossTrades.length) : 0;
   const winRate = total > 0 ? wins / total : 0;
   const lossRate = total > 0 ? losses / total : 0;
