@@ -1,72 +1,256 @@
 /**
  * tradeNormalizer.js
- * Provides a canonical view of a Trade record regardless of whether it
- * was created with the old schema (synthetic_index, profit_loss, risk_reward_ratio,
- * strategy, source="backtest") or the new schema (symbol, pl, rr, setup,
- * dataset, source="REPLAY"|"MANUAL"|...).
+ * SynthEdge — Canonical Trade Normalization Layer
  *
- * All analytics, charting, and UI code should call normalizeTrade() first.
+ * Single source of truth for converting old and new trade records
+ * into the canonical format used by analytics and UI.
  */
 
+export const DATASETS = {
+  LIVE: "LIVE",
+  BACKTEST: "BACKTEST",
+};
+
+export const SOURCES = {
+  MANUAL: "MANUAL",
+  CSV: "CSV",
+  SCREENSHOT: "SCREENSHOT",
+  REPLAY: "REPLAY",
+  LONG_SHORT_TOOL: "LONG_SHORT_TOOL",
+};
+
+const BAD_EMOTIONS = new Set([
+  "FOMO",
+  "Revenge",
+  "Anxious",
+  "Frustrated",
+  "Fearful",
+  "Overconfident",
+]);
+
+function numberOrNull(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 /**
- * Returns a normalized trade object with canonical fields populated.
- * Original fields are preserved so nothing is lost.
+ * Normalize a single trade.
  */
-export function normalizeTrade(t) {
+export function normalizeTrade(t = {}) {
   if (!t) return t;
+
+  const symbol =
+    t.symbol ||
+    t.synthetic_index ||
+    t.index ||
+    "";
+
+  const setup =
+    t.setup ||
+    t.strategy ||
+    "";
+
+  const rr = numberOrNull(
+    t.rr ??
+    t.risk_reward_ratio
+  );
+
+  const pl = numberOrNull(
+    t.pl ??
+    t.profit_loss ??
+    t.pnl ??
+    t.profit
+  );
+
+  /*
+   * IMPORTANT:
+   * trade_date is the user's actual trade date.
+   * created_date is the database creation timestamp.
+   *
+   * Analytics must use trade_date when available.
+   */
+  const createdAt =
+    t.trade_date ||
+    t.createdAt ||
+    t.created_date ||
+    null;
+
+  /*
+   * Dataset
+   */
+  const dataset =
+    t.dataset === DATASETS.BACKTEST ||
+    t.dataset === "backtest" ||
+    t.source === "backtest"
+      ? DATASETS.BACKTEST
+      : DATASETS.LIVE;
+
+  /*
+   * Source
+   */
+  let source;
+
+  if (!t.source || t.source === "journal") {
+    source =
+      dataset === DATASETS.BACKTEST
+        ? SOURCES.REPLAY
+        : SOURCES.MANUAL;
+  } else if (t.source === "backtest") {
+    source = SOURCES.REPLAY;
+  } else {
+    source = String(t.source).toUpperCase();
+  }
+
+  /*
+   * Plan followed
+   */
+  const rawPlan =
+    t.plan_followed ??
+    t.planFollowed ??
+    t.custom_fields?.plan_followed;
+
+  const planFollowed =
+    rawPlan === "Fully" ||
+    rawPlan === "Partially" ||
+    rawPlan === "No"
+      ? rawPlan
+      : rawPlan === true
+        ? "Fully"
+        : rawPlan === false
+          ? "No"
+          : t.rule_violations?.length
+            ? "No"
+            : null;
+
+  /*
+   * Reflection
+   */
+  const reflectionCompleted = Boolean(
+    t.reflection_completed ??
+    t.reflectionCompleted ??
+    t.custom_fields?.reflection_completed ??
+    t.lessons_learned ??
+    t.mistakes_made ??
+    t.trade_reasoning
+  );
+
   return {
     ...t,
-    // Symbol
-    symbol: t.symbol || t.synthetic_index || "",
-    // Setup
-    setup: t.setup || t.strategy || "",
-    // R:R
-    rr: t.rr ?? t.risk_reward_ratio ?? null,
-    // P/L
-    pl: t.pl ?? t.profit_loss ?? null,
-    // Timestamp — prefer trade_date (legacy) if canonical created_date isn't set by user
-    createdAt: t.trade_date || t.created_date || null,
-    // Dataset — derive from legacy source field for old records
-    dataset: t.dataset || (t.source === "backtest" ? "BACKTEST" : "LIVE"),
-    // Source — map legacy values to canonical
-    source: _canonicalSource(t.source),
-    // Reflection
-    reflection_completed: t.reflection_completed ?? t.custom_fields?.reflection_completed ?? false,
-    plan_followed: t.plan_followed ?? t.custom_fields?.plan_followed ?? null,
+
+    // Canonical fields
+    symbol,
+    setup,
+    rr,
+    pl,
+    createdAt,
+    dataset,
+    source,
+
+    // Discipline fields
+    plan_followed: planFollowed,
+    reflection_completed: reflectionCompleted,
+
+    // Screenshot
+    screenshot_url:
+      t.screenshot_url ||
+      t.screenshot_after ||
+      t.screenshot_before ||
+      t.screenshot_during ||
+      null,
+
+    // Legacy compatibility
+    synthetic_index:
+      t.synthetic_index || symbol,
+
+    strategy:
+      t.strategy || setup,
+
+    risk_reward_ratio:
+      t.risk_reward_ratio ?? rr,
+
+    profit_loss:
+      t.profit_loss ??
+      t.pnl ??
+      t.profit ??
+      pl,
+
+    trade_date:
+      t.trade_date ||
+      createdAt,
   };
 }
 
-function _canonicalSource(src) {
-  if (!src || src === "journal") return "MANUAL";
-  if (src === "backtest") return "REPLAY";
-  return src; // already canonical: MANUAL, CSV, SCREENSHOT, REPLAY, LONG_SHORT_TOOL
-}
-
 /**
- * Normalize an array of trades.
+ * Normalize multiple trades.
  */
-export function normalizeTrades(trades) {
-  return (trades || []).map(normalizeTrade);
+export function normalizeTrades(trades = []) {
+  return trades
+    .filter(Boolean)
+    .map(normalizeTrade);
 }
 
 /**
- * Filter normalized trades by dataset.
- * @param {Array} trades - already normalized
- * @param {"LIVE"|"BACKTEST"} dataset
+ * Dataset check.
  */
-export function filterByDataset(trades, dataset) {
-  return trades.filter(t => t.dataset === dataset);
+export function isDataset(trade, dataset) {
+  return normalizeTrade(trade).dataset === dataset;
 }
 
 /**
- * Build the save payload for a new Quick Log trade.
- * Writes BOTH canonical and legacy fields for full backward compatibility.
+ * Canonical trade date.
+ */
+export function getTradeDate(trade) {
+  return normalizeTrade(trade).createdAt;
+}
+
+/**
+ * Value used by analytics.
+ */
+export function getTradeValue(trade) {
+  const normalized = normalizeTrade(trade);
+
+  return normalized.pl ??
+    normalized.rr ??
+    0;
+}
+
+/**
+ * Filter trades by dataset.
+ */
+export function filterByDataset(trades = [], dataset) {
+  return normalizeTrades(trades)
+    .filter(trade => trade.dataset === dataset);
+}
+
+/**
+ * Build Quick Log save payload.
+ *
+ * Writes both canonical and legacy fields so existing
+ * backend/database records remain compatible.
  */
 export function buildTradePayload({
-  symbol, direction, entry_price, exit_price,
-  stop_loss, take_profit, rr, pl, setup, result,
-  session, trade_date, dataset, source,
-  emotional_state, notes, custom_fields,
+  symbol,
+  direction,
+  entry_price,
+  exit_price,
+  stop_loss,
+  take_profit,
+  rr,
+  pl,
+  setup,
+  result,
+  session,
+  trade_date,
+  dataset,
+  source,
+  emotional_state,
+  notes,
+  custom_fields,
 }) {
   return {
     // Canonical
@@ -74,14 +258,16 @@ export function buildTradePayload({
     setup,
     rr: rr ?? undefined,
     pl: pl ?? undefined,
-    dataset: dataset || "LIVE",
-    source: source || "MANUAL",
-    // Legacy mirrors (kept for backward compat with old analytics)
+    dataset: dataset || DATASETS.LIVE,
+    source: source || SOURCES.MANUAL,
+
+    // Legacy compatibility
     synthetic_index: symbol,
     strategy: setup,
     risk_reward_ratio: rr ?? undefined,
     profit_loss: pl ?? undefined,
-    // Shared fields
+
+    // Trade fields
     direction,
     entry_price,
     exit_price: exit_price ?? undefined,
@@ -89,9 +275,118 @@ export function buildTradePayload({
     take_profit: take_profit ?? undefined,
     result,
     session,
-    trade_date: trade_date || new Date().toISOString(),
-    emotional_state: emotional_state || undefined,
-    notes: notes || undefined,
-    custom_fields: custom_fields || undefined,
+
+    // IMPORTANT: actual execution date
+    trade_date:
+      trade_date ||
+      new Date().toISOString(),
+
+    emotional_state:
+      emotional_state || undefined,
+
+    notes:
+      notes || undefined,
+
+    custom_fields:
+      custom_fields || undefined,
   };
+}
+
+/**
+ * Compatibility alias.
+ *
+ * Some newer code may call this instead of buildTradePayload.
+ */
+export function toTradeSavePayload(trade = {}) {
+  const normalized = normalizeTrade(trade);
+
+  return {
+    ...trade,
+
+    dataset: normalized.dataset,
+    source: normalized.source,
+
+    symbol: normalized.symbol,
+    setup: normalized.setup,
+
+    rr: normalized.rr,
+    pl: normalized.pl,
+
+    createdAt: normalized.createdAt,
+    updatedAt: new Date().toISOString(),
+
+    plan_followed:
+      normalized.plan_followed ?? undefined,
+
+    reflection_completed:
+      normalized.reflection_completed,
+
+    screenshot_url:
+      normalized.screenshot_url,
+
+    // Legacy compatibility
+    synthetic_index:
+      normalized.synthetic_index,
+
+    strategy:
+      normalized.strategy,
+
+    risk_reward_ratio:
+      normalized.risk_reward_ratio,
+
+    profit_loss:
+      normalized.profit_loss ??
+      normalized.pl,
+
+    trade_date:
+      normalized.trade_date,
+  };
+}
+
+/**
+ * Discipline score.
+ *
+ * 40% Plan adherence
+ * 25% Stop-loss usage
+ * 20% Journal/reflection
+ * 15% Emotional control
+ */
+export function computeDisciplineScore(trades = []) {
+  if (!trades.length) return 0;
+
+  const normalized = normalizeTrades(trades);
+
+  const total = normalized.length;
+
+  const plan =
+    normalized.filter(
+      t =>
+        t.plan_followed === "Fully" ||
+        t.plan_followed === "Partially"
+    ).length / total;
+
+  const stopLoss =
+    normalized.filter(
+      t =>
+        t.stop_loss !== undefined &&
+        t.stop_loss !== null &&
+        t.stop_loss !== ""
+    ).length / total;
+
+  const journal =
+    normalized.filter(
+      t => t.reflection_completed
+    ).length / total;
+
+  const emotional =
+    normalized.filter(
+      t => !BAD_EMOTIONS.has(t.emotional_state)
+    ).length / total;
+
+  return Math.round(
+    (plan * 40) +
+    (stopLoss * 25) +
+    (journal * 20) +
+    (emotional * 15)
+  );
 }
