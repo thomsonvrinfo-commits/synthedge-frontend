@@ -28,6 +28,11 @@ export interface Env {
   // Brevo
   BREVO_API_KEY?: string;
 
+  // New-user signup notification (owner alert) — falls back to a hardcoded
+  // default in newUserNotification.ts if unset, so this works without any
+  // extra production configuration.
+  OWNER_NOTIFICATION_EMAIL?: string;
+
   // Google OAuth
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;

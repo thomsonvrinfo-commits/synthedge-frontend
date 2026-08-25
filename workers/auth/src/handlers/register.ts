@@ -9,6 +9,7 @@ import { d1First, d1Run, nowIso, ulid, addMinutes } from '@synthedge/shared';
 import { randomOpaqueToken, sha256Hex } from '@synthedge/shared';
 import { sendTransactionalEmail } from '@synthedge/shared';
 import { rateLimit } from '@synthedge/shared';
+import { notifyNewUserOwner } from '../newUserNotification';
 
 const OTP_TTL_MINUTES = 10;
 
@@ -46,6 +47,13 @@ export async function handleRegister(request: Request, env: Env): Promise<Respon
     now,
     now
   );
+
+  await notifyNewUserOwner(env, {
+    userId,
+    email,
+    signupMethod: 'Email/Password',
+    createdAt: now,
+  });
 
   await issueAndSendOtp(env, userId, email, 'signup_verify');
 
@@ -98,17 +106,23 @@ export async function issueAndSendOtp(
 }
 
 export async function handleResendOtp(request: Request, env: Env): Promise<Response> {
-  const body = await request.json<{ email?: string }>().catch(() => null);
+  const body = await request.json<{ email?: string; purpose?: string }>().catch(() => null);
   const email = body?.email?.trim().toLowerCase();
   if (!email) return jsonError('email is required', 400);
 
-  const rl = await rateLimit(env.KV, `resend-otp:${email}`, 3, 15 * 60);
+  // Default preserves the existing signup-verification behavior for the
+  // current Register.jsx call site. 'password_reset' lets ResetPassword.jsx
+  // resend a reset code without going through /auth/forgot-password again
+  // and restarting its own separate rate limit.
+  const purpose = body?.purpose === 'password_reset' ? 'password_reset' : 'signup_verify';
+
+  const rl = await rateLimit(env.KV, `resend-otp:${purpose}:${email}`, 3, 15 * 60);
   if (!rl.allowed) return jsonError('Too many resend attempts. Please try again later.', 429);
 
   const user = await d1First<UserRow>(env.DB, 'SELECT id, email FROM users WHERE email = ?', email);
   // Deliberately return the same success response whether or not the account
   // exists, to avoid leaking account existence via this endpoint.
-  if (user) await issueAndSendOtp(env, user.id, user.email, 'signup_verify');
+  if (user) await issueAndSendOtp(env, user.id, user.email, purpose);
   return jsonOk({ ok: true });
 }
 

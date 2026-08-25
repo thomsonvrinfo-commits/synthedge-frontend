@@ -6,6 +6,7 @@ import type { Env, UserRow } from '@synthedge/shared';
 import { jsonError } from '@synthedge/shared';
 import { d1First, d1Run, nowIso, ulid } from '@synthedge/shared';
 import { issueSessionTokens } from '../session';
+import { notifyNewUserOwner } from '../newUserNotification';
 
 export function handleGoogleStart(env: Env): Response {
   if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_REDIRECT_URI) {
@@ -83,6 +84,14 @@ export async function handleGoogleCallback(request: Request, env: Env): Promise<
       now
     );
     user = { id: userId, email, role: 'user' } as UserRow;
+
+    await notifyNewUserOwner(env, {
+      userId,
+      email,
+      fullName: googleUser.name ?? null,
+      signupMethod: 'Google',
+      createdAt: now,
+    });
   }
 
   // Successful Google-authenticated response redirects back to the frontend
