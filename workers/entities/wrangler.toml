@@ -54,13 +54,13 @@ APP_BASE_URL = "https://synthedgeapp.co.zw"
 
 [[env.production.d1_databases]]
 binding = "DB"
-database_name = "synthedge-db-production"
-database_id = "REPLACE_WITH_PRODUCTION_DB_ID"
+database_name = "synthedge-db"
+database_id = "2a1a6ca1-9fa4-4fe0-84a8-ad3f7822b3ef"
 migrations_dir = "../../db/migrations"
 
 [[env.production.kv_namespaces]]
 binding = "KV"
-id = "REPLACE_WITH_PRODUCTION_KV_ID"
+id = "9ac4b377eea944d78e4c789f6412961f"
 
 [[env.production.r2_buckets]]
 binding = "BUCKET"
