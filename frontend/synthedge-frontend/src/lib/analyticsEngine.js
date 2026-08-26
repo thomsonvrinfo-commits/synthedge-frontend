@@ -45,7 +45,7 @@ export function computeEquityCurve(trades = []) {
       // Use local date parts to avoid UTC-shift moving trades to wrong calendar day
       const _d = new Date(trade.createdAt);
       const key = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}`;
-      const value = trade.pl ?? trade.rr ?? 0;
+      const value = trade.pl ?? 0;
       if (!byDate[key]) byDate[key] = { date: key, dailyPL: 0, dailyRR: 0, count: 0 };
       byDate[key].dailyPL += trade.pl || 0;
       byDate[key].dailyRR += trade.rr || 0;
