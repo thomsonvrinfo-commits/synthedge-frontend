@@ -423,7 +423,7 @@ useEffect(() => {
         profit_loss: t.profitLoss,
         result: t.result,
         trade_date: tradeDate,
-        notes: "Backtest replay trade — P/L is price-difference based (no stake captured)",
+        notes: "Backtest replay trade — P/L calculated from captured stake/lot size.",
         replay_session_id: sessionId || undefined,
       };
       saveTradeWithRetry(payload);
@@ -541,7 +541,7 @@ useEffect(() => {
             startAbsIndex: obj.startAbsIndex, widthCandles: obj.widthCandles };
         }
         // New position object — create a replay trade in WAITING state
-        return createReplayTrade({
+              return createReplayTrade({
           id: obj.id,
           direction: obj.direction,
           entry: obj.entry,
@@ -551,10 +551,12 @@ useEffect(() => {
           placedAtTime: obj.placedAtTime,
           startAbsIndex: obj.startAbsIndex,
           widthCandles: obj.widthCandles,
+          symbol: index,
+          volume: parseFloat(volume),
         });
       });
     });
-  }, [objects]);
+    }, [objects, index, volume]);
   // ─── Replay trade state processing (paused / manual-scrub path only) ────
   // While actively playing, the RAF tick loop above owns trigger processing
   // (it can see every candle that closes, not just a once-per-candle React
@@ -1392,7 +1394,7 @@ try {
             isMobile={isMobile}
           />
           {/* Trade drawer — top-right overlay */}
-          <TradeDrawer
+                    <TradeDrawer
             direction={direction} setDirection={setDirection}
             entryPrice={entryPrice} setEntryPrice={setEntryPrice}
             sl={sl} setSl={setSl}
@@ -1406,6 +1408,10 @@ try {
             savingSession={savingSession}
             replayStats={computeReplayStats(replayTrades)}
             isMobile={isMobile}
+            volume={volume}
+            setVolume={setVolume}
+            minVolume={minVolume}
+            volumeStep={volumeStep}
           />
           {/* Free candle limit banner */}
           {!isPro && candles.length > FREE_CANDLE_LIMIT && (
