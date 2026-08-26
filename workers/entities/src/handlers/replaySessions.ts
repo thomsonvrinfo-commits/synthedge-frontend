@@ -81,18 +81,19 @@ export async function createReplaySession(request: Request, env: Env, user: Auth
     const now = nowIso();
 
     await d1Run(
-      env.DB,
-      `INSERT INTO replay_sessions (
-        id, created_by_id, index_name, granularity, visible_count, candle_start_epoch,
-        drawings, session_trades, stats, name, completed, objective, status, started_at,
-        completed_at, strategy_name, rules_being_tested, notes, conclusion,
-        created_date, updated_date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      id,
-      user.id,
-      body.index_name,
-      body.granularity,
-      body.visible_count ?? null,
+  env.DB,
+  `INSERT INTO replay_sessions (
+    id, created_by_id, index_name, granularity, volume, visible_count, candle_start_epoch,
+    drawings, session_trades, stats, name, completed, objective, status, started_at,
+    completed_at, strategy_name, rules_being_tested, notes, conclusion,
+    created_date, updated_date
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  id,
+  user.id,
+  body.index_name,
+  body.granularity,
+  body.volume ?? null,
+  body.visible_count ?? null,
       body.candle_start_epoch ?? null,
       body.drawings ? JSON.stringify(body.drawings) : null,
       body.session_trades ? JSON.stringify(body.session_trades) : null,
@@ -120,8 +121,19 @@ export async function createReplaySession(request: Request, env: Env, user: Auth
 }
 
 const SIMPLE_UPDATABLE_FIELDS = [
-  "index_name", "granularity", "visible_count", "candle_start_epoch", "name",
-  "objective", "status", "started_at", "completed_at", "strategy_name", "notes", "conclusion",
+  "index_name",
+  "granularity",
+  "volume",
+  "visible_count",
+  "candle_start_epoch",
+  "name",
+  "objective",
+  "status",
+  "started_at",
+  "completed_at",
+  "strategy_name",
+  "notes",
+  "conclusion",
 ] as const;
 
 export async function updateReplaySession(request: Request, env: Env, user: AuthedUser, sessionId: string): Promise<Response> {
