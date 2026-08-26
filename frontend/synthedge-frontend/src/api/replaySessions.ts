@@ -53,6 +53,7 @@ export interface ReplaySession {
   id: string;
   index_name: string;
   granularity: number;
+  volume?: number;
   visible_count?: number;
   candle_start_epoch?: number;
   drawings?: unknown[];
