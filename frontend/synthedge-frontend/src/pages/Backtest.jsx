@@ -20,6 +20,7 @@ import { useM1ReplaySource } from "@/hooks/useM1ReplaySource";
 import { BACKTEST_INDICES } from "@/lib/derivWebSocket";
 import { useProAccess } from "@/hooks/useProAccess";
 import { buildTransform, priceDecimals, getPaddingR } from "@/lib/chartEngine";
+import { getSymbolSpec } from "@/lib/symbolSpecs";
 import { renderFrame } from "@/lib/chartRenderer";
 import {
   hitTestObjects,
@@ -82,6 +83,14 @@ export default function Backtest() {
   const [sl,           setSl]           = useState("");
   const [tp,           setTp]           = useState("");
   const [direction,    setDirection]    = useState("Buy");
+  const [volume,       setVolume]       = useState("");
+    const symbolSpec = useMemo(() => getSymbolSpec(index), [index]);
+  const minVolume = symbolSpec?.minVolume ?? "";
+  const volumeStep = symbolSpec?.volumeStep ?? "any";
+
+  useEffect(() => {
+    setVolume(symbolSpec?.minVolume != null ? String(symbolSpec.minVolume) : "");
+  }, [symbolSpec]);
   // ─── Drawing objects ────────────────────────────────────────────────────
   const [objects,    setObjects]    = useState([]);
   const queryClient = useQueryClient();
