@@ -160,6 +160,9 @@ export default function Backtest() {
       pendingSessionRef.current = session;
       if (session.index_name) setIndex(session.index_name);
       if (session.granularity) setGranularity(session.granularity);
+      if (session.volume != null) {
+  setVolume(String(session.volume));
+}
     }).catch(err => console.error("Failed to load session:", err));
   }, [sessionId]);
   // ─── Lazily create a session for "Quick Replay" entries ──────────────────
@@ -423,7 +426,7 @@ useEffect(() => {
         profit_loss: t.profitLoss,
         result: t.result,
         trade_date: tradeDate,
-        notes: "Backtest replay trade — P/L calculated from captured stake/lot size.",
+       notes: "Backtest replay trade — P/L calculated from captured stake/lot size.",
         replay_session_id: sessionId || undefined,
       };
       saveTradeWithRetry(payload);
@@ -541,19 +544,19 @@ useEffect(() => {
             startAbsIndex: obj.startAbsIndex, widthCandles: obj.widthCandles };
         }
         // New position object — create a replay trade in WAITING state
-              return createReplayTrade({
-          id: obj.id,
-          direction: obj.direction,
-          entry: obj.entry,
-          sl: obj.sl,
-          tp: obj.tp,
-          placedAtIndex: obj.placedAtIndex,
-          placedAtTime: obj.placedAtTime,
-          startAbsIndex: obj.startAbsIndex,
-          widthCandles: obj.widthCandles,
-          symbol: index,
-          volume: parseFloat(volume),
-        });
+             return createReplayTrade({
+  id: obj.id,
+  direction: obj.direction,
+  entry: obj.entry,
+  sl: obj.sl,
+  tp: obj.tp,
+  placedAtIndex: obj.placedAtIndex,
+  placedAtTime: obj.placedAtTime,
+  startAbsIndex: obj.startAbsIndex,
+  widthCandles: obj.widthCandles,
+  symbol: index,
+  volume: parseFloat(volume),
+});
       });
     });
     }, [objects, index, volume]);
@@ -1210,8 +1213,11 @@ const handleRefresh = () => {
     const stats = computeReplayStats(replayTrades);
     // Save drawings separately from position objects (they're in objects[])
     const drawings = objects.filter(o => o.type !== "position");
-    const sessionData = {
-      index_name: index, granularity, visible_count: visibleCount,
+   const sessionData = {
+  index_name: index,
+  granularity,
+  volume: parseFloat(volume),
+  visible_count: visibleCount,
       candle_start_epoch: candles[0]?.epoch || 0,
       drawings,
       session_trades: replayTrades.map(t => ({
