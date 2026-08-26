@@ -1041,20 +1041,20 @@ export function renderFrame(ctx, {
     ? (indicatorPanels || []).filter(k => k !== "volume")
     : indicatorPanels;
 
-  renderGridLayer(ctx, transform, theme, chartSettings);
-  renderTimeAxis(ctx, transform, visibleCandles, theme);
-  _clipChart(ctx, transform, () => {
-    renderCandleLayer(ctx, transform, visibleCandles, theme, chartSettings);
-    renderIndicatorOverlayLayer(ctx, transform, indicatorSeries);
-    renderActiveTradeLayer(ctx, transform, activeTrade);
-    renderDrawingsLayer(ctx, transform, objects, selectedId, editingId, hoveredId, hoverHandle);
-    renderReplayTradesLayer(ctx, transform, replayTrades);
-    renderGhostLayer(ctx, transform, ghost, mousePrice, mouseAbsIndex);
-  });
-  renderPriceBadge(ctx, transform, currentPrice);
+renderGridLayer(ctx, transform, theme, chartSettings);
+_clipChart(ctx, transform, () => {
+  renderCandleLayer(ctx, transform, visibleCandles, theme, chartSettings);
+  renderIndicatorOverlayLayer(ctx, transform, indicatorSeries);
+  renderActiveTradeLayer(ctx, transform, activeTrade);
+  renderDrawingsLayer(ctx, transform, objects, selectedId, editingId, hoveredId, hoverHandle);
+  renderReplayTradesLayer(ctx, transform, replayTrades);
+  renderGhostLayer(ctx, transform, ghost, mousePrice, mouseAbsIndex);
+});
+renderPriceBadge(ctx, transform, currentPrice);
   if (showCrosshair) {
     renderCrosshairLayer(ctx, transform, mousePrice, mouseAbsIndex, visibleCandles, theme);
   }
-  renderIndicatorPanels(ctx, transform, visibleCandles, indicatorSeries, filteredPanels, theme);
-  renderDayDividers(ctx, transform, visibleCandles, theme);
+ renderIndicatorPanels(ctx, transform, visibleCandles, indicatorSeries, filteredPanels, theme);
+renderTimeAxis(ctx, transform, visibleCandles, theme);
+renderDayDividers(ctx, transform, visibleCandles, theme);
 }
