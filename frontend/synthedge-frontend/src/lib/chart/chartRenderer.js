@@ -64,9 +64,11 @@ export function renderGridLayer(ctx, transform, theme = "dark", chartSettings = 
     const dec = priceDecimals(price);
 
     if (showGrid) {
-      ctx.strokeStyle = T.grid;
-      ctx.lineWidth = 0.4;
-      ctx.setLineDash([2, 6]);
+ctx.strokeStyle = theme === "light"
+  ? "rgba(100,116,139,0.22)"
+  : "rgba(148,163,184,0.16)";
+ctx.lineWidth = 0.7;
+ctx.setLineDash([3, 5]);
       ctx.beginPath(); ctx.moveTo(PADDING_L, y); ctx.lineTo(W - transform.padR, y); ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -137,12 +139,12 @@ export function renderDayDividers(ctx, transform, visibleCandles, theme = "dark"
     ctx.setLineDash([]);
 
     // Date label with subtle background for readability
-    ctx.font = "bold 8.5px Inter, sans-serif";
+    ctx.font = "bold 10px Inter, sans-serif";
     const tw = ctx.measureText(b.label).width + 6;
     ctx.fillStyle = theme === "light" ? "rgba(255,255,255,0.92)" : "rgba(15,23,42,0.92)";
     ctx.fillRect(x + 2, chartBottom + 8, tw, 11);
-    ctx.fillStyle = T.timeText;
-    ctx.fillText(b.label, x + 5, chartBottom + 16);
+    ctx.fillStyle = theme === "light" ? "#334155" : "#cbd5e1";
+ctx.fillText(b.label, x + 5, chartBottom + 17);
   }
 
   ctx.restore();
