@@ -414,82 +414,60 @@ export function renderObject(ctx, transform, obj, options = {}) {
 // This layer adds state-colored overlays only when a trade becomes active or hits TP/SL.
 export function renderReplayTradesLayer(ctx, transform, replayTrades) {
   if (!replayTrades?.length) return;
+
   for (const trade of replayTrades) {
-    // Only draw state overlay for non-waiting trades (active, tp_hit, sl_hit)
-    // Waiting state is already shown by the position drawing object
-    if (trade.state !== "waiting") {
-      _drawReplayTrade(ctx, transform, trade);
+    // The position object itself owns Entry / SL / TP rendering.
+    // This layer only adds the trade-state badge so the position
+    // remains one unified Long/Short tool instead of being redrawn.
+    if (trade.state === "active" || trade.state === "tp_hit" || trade.state === "sl_hit") {
+      _drawReplayTradeStateBadge(ctx, transform, trade);
     }
   }
 }
 
-function _drawReplayTrade(ctx, transform, trade) {
-  // Replay trade state overlay — uses same compact bounds as position object
+function _drawReplayTradeStateBadge(ctx, transform, trade) {
   const { priceToY, absToX } = transform;
-  const colors = _tradeStateColor(trade.state);
   const isLong = trade.direction === "Buy";
-  const dec    = priceDecimals(trade.entry);
 
   const startAbsIndex = trade.startAbsIndex ?? trade.placedAtIndex ?? 0;
-  const widthCandles  = trade.widthCandles  ?? 30;
+  const widthCandles = trade.widthCandles ?? 30;
+
   const L = absToX(startAbsIndex);
   const R = absToX(startAbsIndex + widthCandles);
+
   if (R <= L) return;
 
   const entryY = priceToY(trade.entry);
-  const tpY    = trade.tp != null ? priceToY(trade.tp) : null;
-  const slY    = trade.sl != null ? priceToY(trade.sl) : null;
-  const w      = R - L;
+  const tpY = trade.tp != null ? priceToY(trade.tp) : null;
+
+  const stateMap = {
+    active: "ACTIVE",
+    tp_hit: "✓ WIN",
+    sl_hit: "✗ LOSS",
+  };
+
+  const badge = stateMap[trade.state] || trade.state;
+  const colors = _tradeStateColor(trade.state);
+
+  const midY = tpY != null ? (entryY + tpY) / 2 : entryY;
 
   ctx.save();
 
-  if (tpY != null) {
-    ctx.fillStyle = colors.fill;
-    ctx.fillRect(L, Math.min(tpY, entryY), w, Math.abs(tpY - entryY));
-    ctx.strokeStyle = colors.tp; ctx.lineWidth = 1.5; ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(L, tpY); ctx.lineTo(R, tpY); ctx.stroke();
-    ctx.fillStyle = colors.tp;
-    ctx.font = "bold 9px JetBrains Mono, monospace";
-    ctx.textAlign = "right";
-    ctx.fillText(`${isLong ? "▲" : "▼"} TP ${trade.tp.toFixed(dec)}`, R - 4, tpY - 3);
-  }
+  ctx.font = "bold 9px Inter, sans-serif";
+  ctx.textAlign = "left";
 
-  if (slY != null) {
-    ctx.fillStyle = colors.fill;
-    ctx.fillRect(L, Math.min(slY, entryY), w, Math.abs(slY - entryY));
-    ctx.strokeStyle = colors.sl; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
-    ctx.beginPath(); ctx.moveTo(L, slY); ctx.lineTo(R, slY); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = colors.sl;
-    ctx.font = "bold 9px JetBrains Mono, monospace";
-    ctx.textAlign = "right";
-    ctx.fillText(`${isLong ? "▼" : "▲"} SL ${trade.sl.toFixed(dec)}`, R - 4, slY + 10);
-  }
+  const tw = ctx.measureText(badge).width + 10;
 
-  ctx.strokeStyle = colors.entry; ctx.lineWidth = 2; ctx.setLineDash([]);
-  ctx.beginPath(); ctx.moveTo(L, entryY); ctx.lineTo(R, entryY); ctx.stroke();
-  ctx.fillStyle = colors.entry;
-  ctx.font = "bold 9px JetBrains Mono, monospace";
-  ctx.textAlign = "right";
-  ctx.fillText(`⊙ ${trade.entry.toFixed(dec)}`, R - 4, entryY - 3);
+  ctx.fillStyle = colors.entry.replace("1)", "0.8)");
+  ctx.beginPath();
+  ctx.roundRect(L + 6, midY - 8, tw, 16, 3);
+  ctx.fill();
 
-  // State badge inside TP zone
-  if (tpY != null && Math.abs(tpY - entryY) > 22) {
-    const stateMap = { active: "ACTIVE", tp_hit: "✓ WIN", sl_hit: "✗ LOSS" };
-    const badge = stateMap[trade.state] || trade.state;
-    const midY  = (entryY + tpY) / 2;
-    ctx.font = "bold 9px Inter, sans-serif";
-    ctx.textAlign = "left";
-    const tw = ctx.measureText(badge).width + 10;
-    ctx.fillStyle = colors.entry.replace("1)", "0.8)");
-    ctx.beginPath(); ctx.roundRect(L + 6, midY - 8, tw, 16, 3); ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.fillText(badge, L + 11, midY + 4);
-  }
+  ctx.fillStyle = "#fff";
+  ctx.fillText(badge, L + 11, midY + 4);
 
   ctx.restore();
 }
-
 // Inline trade state colors
 function _tradeStateColor(state) {
   switch (state) {
