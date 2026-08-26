@@ -13,6 +13,7 @@ export default function TradeDrawer({
   sl, setSl, tp, setTp, currentPrice, activeTrade,
   onPlaceTrade, trades, isPro, onSaveSession, savingSession,
   replayStats = null,
+  volume, setVolume, minVolume, volumeStep,
 }) {
   const [open, setOpen] = useState(false);
 
@@ -89,10 +90,29 @@ export default function TradeDrawer({
               <Input type="number" step="any" value={sl} onChange={e => setSl(e.target.value)}
                 className="bg-secondary border-border font-mono text-xs mt-0.5 h-7" disabled={!!activeTrade} />
             </div>
-            <div>
+                      <div>
               <Label className="text-[10px] text-muted-foreground">Take Profit</Label>
               <Input type="number" step="any" value={tp} onChange={e => setTp(e.target.value)}
                 className="bg-secondary border-border font-mono text-xs mt-0.5 h-7" disabled={!!activeTrade} />
+            </div>
+
+            <div>
+              <Label className="text-[10px] text-muted-foreground">
+                Stake / Lot Size
+              </Label>
+              <Input
+                type="number"
+                min={minVolume}
+                step={volumeStep}
+                value={volume}
+                onChange={e => setVolume(e.target.value)}
+                placeholder={String(minVolume ?? "")}
+                className="bg-secondary border-border font-mono text-xs mt-0.5 h-7"
+                disabled={!!activeTrade}
+              />
+              <p className="text-[9px] text-muted-foreground mt-0.5">
+                Min: {minVolume ?? "—"}
+              </p>
             </div>
           </div>
 
