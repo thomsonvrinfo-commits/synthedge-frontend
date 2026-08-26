@@ -27,9 +27,12 @@ import { computeStats } from "@/lib/traderUtils";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import SessionCard from "@/components/backtest/SessionCard";
 import SessionCreateForm from "@/components/backtest/SessionCreateForm";
+import { getSymbolSpec } from "@/lib/symbolSpecs";
 
 export default function ReplayHub() {
   const navigate = useNavigate();
+  const replaySymbol = "Volatility 75";
+  const replaySpec = getSymbolSpec(replaySymbol);
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
   const [showForm, setShowForm] = useState(false);
@@ -57,13 +60,14 @@ export default function ReplayHub() {
   const handleCreateSession = async (formData) => {
     setCreating(true);
     try {
-      const session = await createReplaySession({
-        ...formData,
-        status: "active",
-        started_at: new Date().toISOString(),
-        index_name: "Volatility 75",
-        granularity: 3600,
-      });
+     const session = await createReplaySession({
+  ...formData,
+  status: "active",
+  started_at: new Date().toISOString(),
+  index_name: replaySymbol,
+  granularity: 3600,
+  volume: Number(formData.volume),
+});
       queryClient.invalidateQueries({ queryKey: ["replaySessions", user?.id] });
       navigate(`/backtest/replay?session=${session.id}`);
     } catch (err) {
@@ -318,10 +322,13 @@ export default function ReplayHub() {
         {/* New Session Form */}
         {showForm && (
           <SessionCreateForm
-            onCreate={handleCreateSession}
-            onCancel={() => setShowForm(false)}
-            creating={creating}
-          />
+  onCreate={handleCreateSession}
+  onCancel={() => setShowForm(false)}
+  creating={creating}
+  minVolume={replaySpec?.minVolume ?? 0.01}
+  maxVolume={replaySpec?.maxVolume ?? 1000}
+  volumeStep={replaySpec?.volumeStep ?? 0.01}
+/>
         )}
 
         {/* Active Sessions */}
