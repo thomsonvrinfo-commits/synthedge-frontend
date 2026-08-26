@@ -8,13 +8,21 @@ const OBJECTIVE_SUGGESTIONS = [
   "Prop Firm Preparation",
 ];
 
-export default function SessionCreateForm({ onCreate, onCancel, creating }) {
+export default function SessionCreateForm({
+  onCreate,
+  onCancel,
+  creating,
+  minVolume = 0.01,
+  maxVolume = 1000,
+  volumeStep = 0.01,
+}) {
   const [name, setName] = useState("");
   const [objective, setObjective] = useState("");
   const [strategyName, setStrategyName] = useState("");
   const [ruleInput, setRuleInput] = useState("");
   const [rules, setRules] = useState([]);
   const [notes, setNotes] = useState("");
+  const [volume, setVolume] = useState(String(minVolume));
 
   const addRule = () => {
     const r = ruleInput.trim();
@@ -25,16 +33,27 @@ export default function SessionCreateForm({ onCreate, onCancel, creating }) {
   const removeRule = (r) => setRules(rules.filter(x => x !== r));
 
   const handleCreate = () => {
-    if (!name.trim()) return;
+    const parsedVolume = parseFloat(volume);
+
+    if (!name.trim() || !objective.trim()) return;
+
+    if (
+      !Number.isFinite(parsedVolume) ||
+      parsedVolume < minVolume ||
+      parsedVolume > maxVolume
+    ) {
+      return;
+    }
+
     onCreate({
       name: name.trim(),
       objective: objective.trim(),
       strategy_name: strategyName.trim(),
       rules_being_tested: rules.length ? rules : undefined,
       notes: notes.trim() || undefined,
+      volume: parsedVolume,
     });
   };
-
   return (
     <div className="bg-card border border-border/60 rounded-2xl p-5 space-y-4">
       {/* Session Name */}
@@ -88,6 +107,28 @@ export default function SessionCreateForm({ onCreate, onCancel, creating }) {
         />
       </div>
 
+      {/* Stake / Lot Size */}
+<div>
+  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+    Stake / Lot Size <span className="text-destructive">*</span>
+  </label>
+
+  <input
+    type="number"
+    min={minVolume}
+    max={maxVolume}
+    step={volumeStep}
+    value={volume}
+    onChange={(e) => setVolume(e.target.value)}
+    placeholder={String(minVolume)}
+    className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary/40"
+  />
+
+  <p className="text-[10px] text-muted-foreground mt-1">
+    Min: {minVolume} · Max: {maxVolume}
+  </p>
+</div>
+      
       {/* Rules Being Tested */}
       <div>
         <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
