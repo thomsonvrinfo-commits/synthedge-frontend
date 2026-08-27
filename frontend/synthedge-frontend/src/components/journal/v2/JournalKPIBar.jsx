@@ -54,11 +54,11 @@ const avgLossR = realizedLosses.length
 const realizedTotal = realizedTrades.length;
 const realizedWinRate = realizedTotal > 0 ? realizedWins.length / realizedTotal : 0;
 const realizedLossRate = realizedTotal > 0 ? realizedLosses.length / realizedTotal : 0;
-
-const expectancy =
-  realizedWinRate * avgWinR -
-  realizedLossRate * avgLossR;
-
+  // Same population fix as analyticsEngine.js: probability must come from
+  // the realized-only population, not stats.wins/losses (which count every
+  // trade, including ones with no realizedR yet).
+  const realizedCount = realizedWins.length + realizedLosses.length;
+  const expectancy = realizedCount > 0 ? parseFloat(((realizedWins.length / realizedCount) * avgWinR - (realizedLosses.length / realizedCount) * avgLossR).toFixed(2)) : 0;
   // Best session
   const sessionMap = {};
   trades.forEach(t => {
