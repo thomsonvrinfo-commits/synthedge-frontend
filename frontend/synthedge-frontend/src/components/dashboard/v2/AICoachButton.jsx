@@ -56,12 +56,13 @@ export default function AICoachButton() {
 
       {/* FAB */}
       <button
-        onClick={() => setOpen(o => !o)}
-        className="fixed bottom-5 right-5 z-50 flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-2xl shadow-lg hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 font-semibold text-sm"
-      >
-        <Sparkles className="w-4 h-4" />
-        Ask SynthEdge AI
-      </button>
+             onClick={() => setOpen(o => !o)}
+              aria-label="Ask SynthEdge AI"
+               title="Ask SynthEdge AI"
+               className="fixed bottom-5 right-5 z-50 w-14 h-14 flex items-center justify-center bg-primary text-primary-foreground rounded-full shadow-lg hover:bg-primary/90 transition-all hover:scale-105 active:scale-95"
+          >
+      <Sparkles className="w-6 h-6" />
+           </button>
     </>
   );
 }
