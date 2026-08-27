@@ -37,7 +37,27 @@ export default function JournalKPIBar({ stats, trades }) {
   // Expectancy
   const avgWin = trades.filter(t => t.result === "Win" && t.profit_loss).reduce((s, t) => s + t.profit_loss, 0) / Math.max(wins, 1);
   const avgLoss = trades.filter(t => t.result === "Loss" && t.profit_loss).reduce((s, t) => s + t.profit_loss, 0) / Math.max(losses, 1);
-  const expectancy = wins + losses > 0 ? parseFloat(((wins / (wins + losses)) * avgRR + (losses / (wins + losses)) * (avgLoss > 0 ? -avgLoss : avgLoss)).toFixed(2)) : 0;
+  const realizedTrades = trades.filter(t => t.realizedR != null);
+const realizedWins = realizedTrades.filter(t => Number(t.realizedR) > 0);
+const realizedLosses = realizedTrades.filter(t => Number(t.realizedR) < 0);
+
+const avgWinR = realizedWins.length
+  ? realizedWins.reduce((sum, t) => sum + Number(t.realizedR), 0) / realizedWins.length
+  : 0;
+
+const avgLossR = realizedLosses.length
+  ? Math.abs(
+      realizedLosses.reduce((sum, t) => sum + Number(t.realizedR), 0) / realizedLosses.length
+    )
+  : 0;
+
+const realizedTotal = realizedTrades.length;
+const realizedWinRate = realizedTotal > 0 ? realizedWins.length / realizedTotal : 0;
+const realizedLossRate = realizedTotal > 0 ? realizedLosses.length / realizedTotal : 0;
+
+const expectancy =
+  realizedWinRate * avgWinR -
+  realizedLossRate * avgLossR;
 
   // Best session
   const sessionMap = {};
