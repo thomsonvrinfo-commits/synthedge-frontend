@@ -34,9 +34,10 @@ export function createReplayTrade({ id, direction, entry, sl, tp, placedAtIndex,
     exitTime:   null,
     exitIndex:  null,
     exitPrice:  null,
-    rr:         null,
-    profitLoss: null,
-    plError:    null,
+   rr: null,
+   realizedR: null,   // actual outcome in R — what the trade actually produced
+   profitLoss: null,
+   plError: null,
   };
 }
 
@@ -95,7 +96,10 @@ export function processReplayTrades(trades, liveCandle, currentAbsIndex) {
         const reward = Math.abs(updated.tp    - updated.entry);
         const rr     = risk > 0 ? parseFloat((reward / risk).toFixed(2)) : 0;
 
-        // Use per-symbol formula; profitLoss is null if volume/symbol missing
+         // realizedR = what the trade ACTUALLY produced, not what was targeted.
+      const realizedR = result === TRADE_STATES.TP_HIT ? rr : -1;
+
+         // Use per-symbol formula; profitLoss is null if volume/symbol missing
         const { pl: profitLoss, error: plError } = calculateTradePnL(
           updated.symbol, updated.entry, exitPrice, updated.direction, updated.volume
         );
@@ -106,8 +110,9 @@ export function processReplayTrades(trades, liveCandle, currentAbsIndex) {
           exitPrice,
           exitTime:   liveCandle.time,
           exitIndex:  currentAbsIndex,
-          rr,
-          profitLoss,
+         rr,
+         realizedR,
+         profitLoss,
           plError,
           result:     result === TRADE_STATES.TP_HIT ? "Win" : "Loss",
         };
