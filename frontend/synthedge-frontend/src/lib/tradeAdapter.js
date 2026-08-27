@@ -55,6 +55,7 @@ export function normalizeTrade(rawTrade = {}) {
   const symbol = rawTrade.symbol || rawTrade.synthetic_index || rawTrade.index;
   const setup = rawTrade.setup || rawTrade.strategy;
   const rr = numberOrUndefined(rawTrade.rr ?? rawTrade.risk_reward_ratio);
+  const realizedR = numberOrUndefined(rawTrade.realizedR ?? rawTrade.realized_r);
   const pl = numberOrUndefined(rawTrade.pl ?? rawTrade.profit_loss);
 
   // plan_followed is a string enum: "Fully" | "Partially" | "No" (or undefined)
@@ -81,6 +82,7 @@ export function normalizeTrade(rawTrade = {}) {
     symbol,
     setup,
     rr,
+    realizedR,
     pl,
     createdAt,
     updatedAt,
@@ -126,6 +128,8 @@ export function toTradeSavePayload(trade = {}) {
     symbol: normalized.symbol,
     setup: normalized.setup,
     rr: normalized.rr,
+    realizedR: normalized.realizedR,
+    realized_r: normalized.realizedR,
     pl: normalized.pl,
     createdAt: normalized.createdAt,
     updatedAt: new Date().toISOString(),
