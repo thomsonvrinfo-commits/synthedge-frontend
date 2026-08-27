@@ -103,11 +103,43 @@ export function computeAnalytics(rawTrades = []) {
   // Breakevens count toward total but not toward win/loss averages.
   const winTrades = trades.filter(t => t.result === "Win");
   const lossTrades = trades.filter(t => t.result === "Loss");
-  const avgWinR = winTrades.length ? winTrades.reduce((s, t) => s + (t.rr ?? (t.pl ?? 0)), 0) / winTrades.length : 0;
-  const avgLossR = lossTrades.length ? Math.abs(lossTrades.reduce((s, t) => s + (t.rr ?? (t.pl ?? 0)), 0) / lossTrades.length) : 0;
+ const realizedWinTrades = winTrades.filter(t => t.realizedR != null);
+const realizedLossTrades = lossTrades.filter(t => t.realizedR != null);
+
+const avgWinR = realizedWinTrades.length
+  ? realizedWinTrades.reduce(
+      (sum, t) => sum + Number(t.realizedR),
+      0
+    ) / realizedWinTrades.length
+  : 0;
+
+const avgLossR = realizedLossTrades.length
+  ? Math.abs(
+      realizedLossTrades.reduce(
+        (sum, t) => sum + Number(t.realizedR),
+        0
+      ) / realizedLossTrades.length
+    )
+  : 0;
   const winRate = total > 0 ? wins / total : 0;
   const lossRate = total > 0 ? losses / total : 0;
-  const expectancy = round(winRate * avgWinR - lossRate * avgLossR);
+  const realizedTrades = [...realizedWinTrades, ...realizedLossTrades];
+const realizedWins = realizedWinTrades.length;
+const realizedLosses = realizedLossTrades.length;
+const realizedTotal = realizedTrades.length;
+
+const realizedWinRate = realizedTotal > 0
+  ? realizedWins / realizedTotal
+  : 0;
+
+const realizedLossRate = realizedTotal > 0
+  ? realizedLosses / realizedTotal
+  : 0;
+
+const expectancy = round(
+  realizedWinRate * avgWinR -
+  realizedLossRate * avgLossR
+);
   const execTrades = trades.filter(t => t.execution_rating);
   const avgExecution = execTrades.length ? execTrades.reduce((s, t) => s + t.execution_rating, 0) / execTrades.length : 0;
 
