@@ -45,9 +45,12 @@ export default function ReplayHeader({
         </SelectContent>
       </Select>
 
-      {/* Timeframe pills — scrollable on tiny screens */}
-      <div className="flex items-center gap-0.5 bg-secondary rounded-md p-0.5 flex-shrink-0 overflow-x-auto scrollbar-none">
-        {TIMEFRAMES.map(t => (
+      {/* Timeframe pills — the outer header row is now the single scroll
+          owner. This div used to have its own overflow-x-auto too, putting
+          two horizontal-scroll regions back-to-back on the same axis —
+          which is exactly the kind of nesting that makes touchscreens
+          swallow taps as a scroll gesture instead of registering a click. */}
+      <div className="flex items-center gap-0.5 bg-secondary rounded-md p-0.5 flex-shrink-0">     {TIMEFRAMES.map(t => (
           <button
             key={t.value}
             onClick={() => onGranularityChange(t.value)}
