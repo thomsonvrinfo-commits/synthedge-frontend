@@ -31,7 +31,10 @@ export default function ReplayHeader({
   const tf = TIMEFRAMES.find(t => t.value === granularity)?.label || "1h";
 
   return (
-    <div className="flex items-center gap-1.5 px-2 h-10 bg-card border-b border-border flex-shrink-0 overflow-x-auto scrollbar-none">
+   <div
+      className="flex items-center gap-1.5 px-2 h-10 bg-card border-b border-border flex-shrink-0 overflow-x-auto scrollbar-none"
+      style={{ touchAction: "pan-x", WebkitOverflowScrolling: "touch" }}
+    >
       {/* Index selector */}
       <Select value={index} onValueChange={onIndexChange}>
         <SelectTrigger className="h-7 w-auto min-w-[70px] max-w-[110px] text-xs font-bold border-border bg-secondary px-2 gap-1 flex-shrink-0">
