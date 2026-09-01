@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect, useRef } from "react";
 import { pollPaynow } from "@/api/billing";
+import { createPaymentRecord } from "@/api/subscription";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Crown, Loader2, CheckCircle2, AlertTriangle, CreditCard, ExternalLink, Zap, Clock } from "lucide-react";
@@ -60,11 +61,26 @@ useEffect(() => {
 
   return () => clearInterval(intervalId);
 }, [isReturnSuccess, isActive, queryClient, searchParams]);
- const handlePaynow = async () => {
+const handlePaynow = async () => {
   setLoading(true);
   setError(null);
 
   try {
+    const amount = isAnnual ? 99 : 10;
+    const billingCycle = isAnnual ? "annual" : "monthly";
+
+    // 1. Create the pending payment record first.
+    const paymentRecord = await createPaymentRecord({
+      amount,
+      method: "paynow",
+      billingCycle,
+    });
+
+    if (!paymentRecord?.id) {
+      throw new Error("Payment record was not created.");
+    }
+
+    // 2. Give the Paynow Worker the payment record ID.
     const response = await fetch(PAYNOW_WORKER_URL, {
       method: "POST",
       headers: {
@@ -73,6 +89,7 @@ useEffect(() => {
       body: JSON.stringify({
         action: "initiate",
         plan: planParam,
+        paymentRecordId: paymentRecord.id,
       }),
     });
 
@@ -94,11 +111,10 @@ useEffect(() => {
 
   } catch (err) {
     console.error("Checkout error:", err);
-    setError("Payment unavailable. Please try again shortly.");
+    setError(err?.message || "Payment unavailable. Please try again shortly.");
     setLoading(false);
   }
 };
-
   if (isActive) {
     return (
       <div className="max-w-md mx-auto py-16 text-center space-y-4">

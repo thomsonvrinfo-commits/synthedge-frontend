@@ -1,0 +1,17 @@
+name = "synthedge-paynow"
+main = "src/index.ts"
+compatibility_date = "2026-06-20"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production]
+name = "synthedge-paynow"
+
+[env.production.vars]
+APP_BASE_URL = "https://app.synthedgeapp.co.zw"
+PAYNOW_RETURN_URL = "https://app.synthedgeapp.co.zw/checkout"
+PAYNOW_RESULT_URL = "https://synthedge-paynow.thomsonvr-info.workers.dev/result"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "synthedge-db"
+database_id = "2a1a6ca1-9fa4-4fe0-84a8-ad3f7822b3ef"

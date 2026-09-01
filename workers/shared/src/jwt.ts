@@ -28,7 +28,7 @@ function utf8Encode(str: string): Uint8Array {
 async function hmacKey(secret: string): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     'raw',
-    utf8Encode(secret),
+    utf8Encode(secret) as BufferSource,
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign', 'verify']
@@ -49,7 +49,7 @@ export async function signAccessToken(
   const signingInput = `${headerB64}.${payloadB64}`;
 
   const key = await hmacKey(secret);
-  const signature = await crypto.subtle.sign('HMAC', key, utf8Encode(signingInput));
+  const signature = await crypto.subtle.sign('HMAC', key, utf8Encode(signingInput) as BufferSource);
   const sigB64 = base64UrlEncode(new Uint8Array(signature));
 
   return `${signingInput}.${sigB64}`;
@@ -72,7 +72,7 @@ export async function verifyAccessToken(token: string, secret: string): Promise<
   const key = await hmacKey(secret);
   const sigBytes = base64UrlDecode(sigB64);
 
-  const validSig = await crypto.subtle.verify('HMAC', key, sigBytes, utf8Encode(signingInput));
+  const validSig = await crypto.subtle.verify('HMAC', key, sigBytes as BufferSource, utf8Encode(signingInput) as BufferSource);
   if (!validSig) return { valid: false, reason: 'bad_signature' };
 
   let payload: AccessTokenPayload;
@@ -102,7 +102,7 @@ export function randomOpaqueToken(byteLength = 32): string {
 
 /** SHA-256 hash of a string, hex-encoded. Used to store refresh/reset/OTP tokens without keeping the raw value. */
 export async function sha256Hex(input: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', utf8Encode(input));
+  const digest = await crypto.subtle.digest('SHA-256', utf8Encode(input) as BufferSource);
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 

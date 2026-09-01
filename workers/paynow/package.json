@@ -1,0 +1,19 @@
+{
+  "name": "@synthedge/paynow-worker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy:production": "wrangler deploy --env production",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@synthedge/shared": "*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250905.0",
+    "typescript": "^5.8.2",
+    "wrangler": "^4.110.0"
+  }
+}

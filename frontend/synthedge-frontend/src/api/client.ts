@@ -1,27 +1,7 @@
 /**
  * src/api/client.ts
  *
- * Thin fetch wrapper for the new Cloudflare Workers / D1 REST backend that is
- * being built in parallel. This is the ONLY module that should know how a
- * request reaches the network — every other api/*.ts module (auth.ts,
- * profile.ts, and later trades.ts / replaySessions.ts / etc.) should call
- * `apiClient.get/post/patch/put/delete` instead of using `fetch` directly.
- *
- * BACKEND CONTRACT (as assumed here — confirm with the backend team, adjust
- * this file only if the real contract differs, nothing else should need to
- * change):
- *   - Base URL comes from VITE_API_BASE_URL (e.g. "https://api.synthedge.app").
- *     Falls back to "/api" so a same-origin dev proxy also works.
- *   - Auth: JWT bearer token in `Authorization: Bearer <token>`.
- *   - All request/response bodies are JSON.
- *   - Errors are JSON: { error: string, code?: string, ...extra }.
- *
- * Token storage: a NEW localStorage key (`synthedge_access_token`) is used,
- * deliberately different from Base44's own `base44_access_token` /
- * `base44_token` keys, so the two auth systems never collide while both
- * exist side by side during the migration. Pages that still authenticate via
- * Base44 (Login/Register/ForgotPassword/ResetPassword — not yet migrated)
- * will NOT populate this key. See Phase 1 migration notes for details.
+ * Central API client for SynthEdge authentication and entity requests.
  */
 
 const AUTH_API_URL =
@@ -73,11 +53,9 @@ export function clearAuthToken(): void {
 }
 
 // ─── 401 handling ───────────────────────────────────────────────────────────
-// Lets AuthContext (or anything else) react to a session being invalidated
-// mid-app (e.g. expired token on a background refetch) without every caller
-// having to check for it manually.
 
 type UnauthorizedListener = () => void;
+
 const unauthorizedListeners = new Set<UnauthorizedListener>();
 
 export function onUnauthorized(listener: UnauthorizedListener): () => void {
@@ -90,51 +68,102 @@ function notifyUnauthorized() {
     try {
       listener();
     } catch {
-      // never let a listener error break the request path
+      // Never let a listener error break the request path.
     }
   });
 }
 
-// ─── Refresh-on-401 ─────────────────────────────────────────────────────────
-// Uses the EXISTING POST /auth/refresh endpoint (workers/auth/src/handlers/
-// tokens.ts) — reads the HttpOnly `se_refresh` cookie server-side and rotates
-// it, returning a new short-lived access token. This is the only refresh
-// mechanism in the app; nothing else should implement a second one.
-//
-// A single in-flight refresh is shared across every caller (dedupe), so if
-// several requests hit 401 at once (e.g. replay autosave + a background
-// prefetch), only one POST /auth/refresh is sent. Every 401 gets at most one
-// refresh + one retry — never a loop.
+// ─── Refresh ─────────────────────────────────────────────────────────────────
 
 const REFRESH_PATH = "/auth/refresh";
 
 let refreshInFlight: Promise<string | null> | null = null;
 
+/**
+ * Refreshes the access token using the HttpOnly se_refresh cookie.
+ *
+ * The refresh token itself never enters localStorage.
+ * Only the newly issued short-lived access token is stored there.
+ *
+ * Concurrent callers share the same refresh request.
+ */
 async function performRefresh(): Promise<string | null> {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
         const res = await fetch(buildUrl(REFRESH_PATH), {
           method: "POST",
-          credentials: "include", // required: sends the HttpOnly se_refresh cookie
+          credentials: "include",
         });
+
         const text = await res.text();
         const data = text ? safeJsonParse(text) : null;
-        if (!res.ok) return null;
-        const token = (data as { accessToken?: string } | null)?.accessToken;
-        if (!token) return null;
+
+        if (!res.ok) {
+          return null;
+        }
+
+        const token =
+          (data as { accessToken?: string } | null)?.accessToken ?? null;
+
+        if (!token) {
+          return null;
+        }
+
         setAuthToken(token);
+
         return token;
       } catch {
         return null;
       } finally {
-        // Allow the next 401 (after this refresh resolves) to trigger a new
-        // refresh attempt rather than reusing a stale settled promise.
         refreshInFlight = null;
       }
     })();
   }
+
   return refreshInFlight;
+}
+
+/**
+ * Explicitly restores the current authentication session.
+ *
+ * This is used during application startup so AuthContext does not have to
+ * wait for an expired access token to produce a 401 before refreshing.
+ *
+ * If there is already a valid access token, we leave it alone.
+ * If there is no token, or the stored token is expired, we use the
+ * HttpOnly refresh cookie to obtain a fresh access token.
+ */
+export async function restoreAuthSession(): Promise<string | null> {
+  const token = getAuthToken();
+
+  if (!token) {
+    return performRefresh();
+  }
+
+  try {
+    const parts = token.split(".");
+
+    if (parts.length !== 3) {
+      return performRefresh();
+    }
+
+    const payload = JSON.parse(
+      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))
+    ) as {
+      exp?: number;
+    };
+
+    const now = Math.floor(Date.now() / 1000);
+
+    if (typeof payload.exp === "number" && payload.exp <= now) {
+      return performRefresh();
+    }
+
+    return token;
+  } catch {
+    return performRefresh();
+  }
 }
 
 // ─── Core request ───────────────────────────────────────────────────────────
@@ -143,15 +172,17 @@ export interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined | null>;
-  /** Set false to skip attaching the Authorization header (public endpoints). */
+  /** Set false to skip attaching the Authorization header. */
   auth?: boolean;
   signal?: AbortSignal;
-  /** Internal: set true on the retry attempt after a refresh, to prevent loops. */
+  /** Internal: prevents refresh loops on retry. */
   _isRetry?: boolean;
 }
 
-function buildUrl(path: string, query?: RequestOptions["query"]): string {
-
+function buildUrl(
+  path: string,
+  query?: RequestOptions["query"]
+): string {
   const base =
     path.startsWith("/auth") ||
     path.startsWith("/users")
@@ -164,6 +195,7 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
       ? window.location.origin
       : undefined
   );
+
   if (query) {
     Object.entries(query).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -171,14 +203,28 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
       }
     });
   }
+
   return url.toString();
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, query, auth = true, signal, _isRetry = false } = options;
+async function request<T>(
+  path: string,
+  options: RequestOptions = {}
+): Promise<T> {
+  const {
+    method = "GET",
+    body,
+    query,
+    auth = true,
+    signal,
+    _isRetry = false,
+  } = options;
 
   const headers: Record<string, string> = {};
-  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+
+  const isFormData =
+    typeof FormData !== "undefined" &&
+    body instanceof FormData;
 
   if (body !== undefined && !isFormData) {
     headers["Content-Type"] = "application/json";
@@ -186,25 +232,35 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (auth) {
     const token = getAuthToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
   }
 
   const res = await fetch(buildUrl(path, query), {
     method,
     headers,
-    body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
+    body:
+      body === undefined
+        ? undefined
+        : isFormData
+          ? (body as FormData)
+          : JSON.stringify(body),
     signal,
-    credentials: "include", // send/receive the HttpOnly se_refresh cookie (same-site as of auth.synthedgeapp.co.zw)
+    credentials: "include",
   });
 
   const text = await res.text();
   const data = text ? safeJsonParse(text) : null;
 
   if (!res.ok) {
-    // Refresh-once-and-retry: only for authenticated requests that aren't
-    // already a retry, and never for the refresh/login endpoints themselves
-    // (which would recurse). If refresh fails, fall through to the normal
-    // error path below, which notifies AuthContext and logs the user out.
+    /*
+     * Existing mid-session protection:
+     *
+     * If an authenticated request receives 401, refresh the access token
+     * once and retry the original request.
+     */
     if (
       res.status === 401 &&
       auth &&
@@ -213,16 +269,24 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       path !== "/auth/login"
     ) {
       const newToken = await performRefresh();
+
       if (newToken) {
-        return request<T>(path, { ...options, _isRetry: true });
+        return request<T>(path, {
+          ...options,
+          _isRetry: true,
+        });
       }
     }
 
-    if (res.status === 401) notifyUnauthorized();
+    if (res.status === 401) {
+      notifyUnauthorized();
+    }
+
     throw new ApiError({
       status: res.status,
       code: (data as { code?: string } | null)?.code,
-      message: (data as { error?: string; message?: string } | null)?.error ||
+      message:
+        (data as { error?: string; message?: string } | null)?.error ||
         (data as { error?: string; message?: string } | null)?.message ||
         `Request failed with status ${res.status}`,
       data,
@@ -241,19 +305,59 @@ function safeJsonParse(text: string): unknown {
 }
 
 export const apiClient = {
-  get: <T>(path: string, options?: Omit<RequestOptions, "method" | "body">) =>
-    request<T>(path, { ...options, method: "GET" }),
-  post: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, "method" | "body">) =>
-    request<T>(path, { ...options, method: "POST", body }),
-  patch: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, "method" | "body">) =>
-    request<T>(path, { ...options, method: "PATCH", body }),
-  put: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, "method" | "body">) =>
-    request<T>(path, { ...options, method: "PUT", body }),
-  delete: <T>(path: string, options?: Omit<RequestOptions, "method" | "body">) =>
-    request<T>(path, { ...options, method: "DELETE" }),
+  get: <T>(
+    path: string,
+    options?: Omit<RequestOptions, "method" | "body">
+  ) =>
+    request<T>(path, {
+      ...options,
+      method: "GET",
+    }),
+
+  post: <T>(
+    path: string,
+    body?: unknown,
+    options?: Omit<RequestOptions, "method" | "body">
+  ) =>
+    request<T>(path, {
+      ...options,
+      method: "POST",
+      body,
+    }),
+
+  patch: <T>(
+    path: string,
+    body?: unknown,
+    options?: Omit<RequestOptions, "method" | "body">
+  ) =>
+    request<T>(path, {
+      ...options,
+      method: "PATCH",
+      body,
+    }),
+
+  put: <T>(
+    path: string,
+    body?: unknown,
+    options?: Omit<RequestOptions, "method" | "body">
+  ) =>
+    request<T>(path, {
+      ...options,
+      method: "PUT",
+      body,
+    }),
+
+  delete: <T>(
+    path: string,
+    options?: Omit<RequestOptions, "method" | "body">
+  ) =>
+    request<T>(path, {
+      ...options,
+      method: "DELETE",
+    }),
 };
 
 export {
   AUTH_API_URL,
-  ENTITY_API_URL
+  ENTITY_API_URL,
 };
