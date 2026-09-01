@@ -11,7 +11,7 @@ import { handleInitTrial } from './handlers/trial';
 import { issueSessionTokens } from './session';
 
 // ---------------------------------------------------------------------------
-// Scope of this Worker: IDENTITY ONLY.
+// Scope of  this Worker: IDENTITY ONLY.
 //
 // This Worker owns everything under /auth/*, plus /users/init-trial and its
 // own /health. It does NOT own /profile, /trades, /trading-rules,
