@@ -74,8 +74,8 @@ custom_domain = true
 
 [[env.production.d1_databases]]
 binding = "DB"
-database_name = "synthedge-db-production"
-database_id = "f147deb7-5743-4880-8c90-b47c2d424538"
+database_name = "synthedge-db"
+database_id = "2a1a6ca1-9fa4-4fe0-84a8-ad3f7822b3ef"
 migrations_dir = "../../db/migrations"
 
 [[env.production.kv_namespaces]]
@@ -89,3 +89,4 @@ id = "9ac4b377eea944d78e4c789f6412961f"
 #   wrangler secret put GOOGLE_CLIENT_SECRET --env staging
 #   wrangler secret put GOOGLE_REDIRECT_URI --env staging
 #   (repeat with --env production for the production secret set)
+
