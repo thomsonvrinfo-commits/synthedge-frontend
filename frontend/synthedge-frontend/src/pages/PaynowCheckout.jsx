@@ -3,6 +3,7 @@
  * then redirects to Paynow browserurl. After return, polls until webhook activation completes.
  */
 import React, { useState, useEffect, useRef } from "react";
+import { createPaymentRecord } from "@/api/subscription";
 import { pollPaynow } from "@/api/billing";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -60,11 +61,26 @@ useEffect(() => {
 
   return () => clearInterval(intervalId);
 }, [isReturnSuccess, isActive, queryClient, searchParams]);
- const handlePaynow = async () => {
+const handlePaynow = async () => {
   setLoading(true);
   setError(null);
 
   try {
+    const amount = isAnnual ? 99 : 10;
+    const billingCycle = isAnnual ? "annual" : "monthly";
+
+    // Create the pending payment record first.
+    const paymentRecord = await createPaymentRecord({
+      amount,
+      method: "paynow",
+      billingCycle,
+    });
+
+    if (!paymentRecord?.id) {
+      throw new Error("Payment record was not created.");
+    }
+
+    // Pass the payment record ID to the Paynow Worker.
     const response = await fetch(PAYNOW_WORKER_URL, {
       method: "POST",
       headers: {
@@ -73,15 +89,14 @@ useEffect(() => {
       body: JSON.stringify({
         action: "initiate",
         plan: planParam,
+        paymentRecordId: paymentRecord.id,
       }),
     });
 
     const payload = await response.json();
 
-    if (payload?.error) {
-      setError(payload.error);
-      setLoading(false);
-      return;
+    if (!response.ok || payload?.error) {
+      throw new Error(payload?.error || "Could not start Paynow checkout.");
     }
 
     if (payload?.browserurl) {
@@ -89,12 +104,10 @@ useEffect(() => {
       return;
     }
 
-    setError("Could not start Paynow checkout. Please try again.");
-    setLoading(false);
-
+    throw new Error("Could not start Paynow checkout.");
   } catch (err) {
     console.error("Checkout error:", err);
-    setError("Payment unavailable. Please try again shortly.");
+    setError(err?.message || "Payment unavailable. Please try again shortly.");
     setLoading(false);
   }
 };
