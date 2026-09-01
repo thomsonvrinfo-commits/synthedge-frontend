@@ -43,10 +43,11 @@ function withCors(response: Response, request: Request): Response {
   const origin = request.headers.get("Origin") ?? "";
 
   const allowedOrigins = [
-    "https://synthedgeapp.co.zw",
-    "https://www.synthedgeapp.co.zw",
-    "http://localhost:5173",
-  ];
+  "https://app.synthedgeapp.co.zw",
+  "https://synthedgeapp.co.zw",
+  "https://www.synthedgeapp.co.zw",
+  "http://localhost:5173",
+];
 
   if (allowedOrigins.includes(origin)) {
     headers.set("Access-Control-Allow-Origin", origin);
