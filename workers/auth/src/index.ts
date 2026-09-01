@@ -47,7 +47,7 @@ function withCors(response: Response, request: Request): Response {
   "https://synthedgeapp.co.zw",
   "https://www.synthedgeapp.co.zw",
   "http://localhost:5173",
-];
+   ];
 
   if (allowedOrigins.includes(origin)) {
     headers.set("Access-Control-Allow-Origin", origin);
