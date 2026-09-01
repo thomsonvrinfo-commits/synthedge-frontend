@@ -74,14 +74,19 @@ import {
   postMessage,
 } from "./handlers/ai";
 
-function withCors(response: Response, appBaseUrl: string): Response {
+function withCors(response: Response, request: Request): Response {
   const headers = new Headers(response.headers);
   // A wildcard origin cannot be combined with credentialed requests (the
   // browser will reject the response outright) — every request from
   // api/client.ts now sends `credentials: "include"` so the auth Worker's
   // refresh cookie can reach it, so this has to echo the real app origin,
   // matching how workers/auth's withCors already works.
-  headers.set("Access-Control-Allow-Origin", appBaseUrl);
+  const origin = request.headers.get("Origin");
+  const allowedOrigins = ["https://app.synthedgeapp.co.zw", "https://synthedgeapp.co.zw"];
+
+  if (origin && allowedOrigins.includes(origin)) {
+    headers.set("Access-Control-Allow-Origin", origin);
+  }
   headers.set("Access-Control-Allow-Credentials", "true");
   headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   headers.set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
@@ -198,7 +203,7 @@ export default {
   async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     try {
       const response = await router(request, env, ctx);
-      return withSecurityHeaders(withCors(response, env.APP_BASE_URL));
+      return withSecurityHeaders(withCors(response, request));
     } catch (err) {
       console.error("[entities] unhandled error", err);
       return withSecurityHeaders(jsonError("Internal server error", 500));
@@ -222,3 +227,4 @@ export default {
     );
   },
 };
+
