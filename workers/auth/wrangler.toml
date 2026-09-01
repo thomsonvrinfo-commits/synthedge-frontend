@@ -67,7 +67,7 @@ REFRESH_TOKEN_TTL_DAYS = "30"
 # actually be sent back on POST /auth/refresh. Requires a Custom Domain
 # named "auth.synthedgeapp.co.zw" to be added to this Worker in the
 # Cloudflare dashboard (Workers & Pages -> synthedge-auth-production ->
-# Domains & Routes) before this route takes effect.
+# Domains & Routes) before  this route takes effect.
 [[env.production.routes]]
 pattern = "auth.synthedgeapp.co.zw"
 custom_domain = true
