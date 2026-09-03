@@ -1,5 +1,4 @@
-export const PAYNOW_INITIATE_URL =
-  "https://www.paynow.co.zw/interface/initiatetransaction";
+export const PAYNOW_INITIATE_URL = "https://www.paynow.co.zw/interface/initiatetransaction";
 
 export const PAYNOW_PAID_STATUSES = new Set([
   "paid",
@@ -7,19 +6,18 @@ export const PAYNOW_PAID_STATUSES = new Set([
   "delivered",
 ]);
 
-export async function sha512(text: string): Promise<string> {
+async function sha512(text: string): Promise<string> {
   const encoded = new TextEncoder().encode(text);
   const hashBuffer = await crypto.subtle.digest("SHA-512", encoded);
-
   return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
     .toUpperCase();
 }
 
-export function buildInitiationHashInput(
+function buildInitiationHashInput(
   fields: Record<string, string>,
-  integrationKey: string,
+  integrationKey: string
 ): string {
   const fieldOrder = [
     "id",
@@ -39,59 +37,31 @@ export function buildInitiationHashInput(
 
 export async function buildInitiationHash(
   fields: Record<string, string>,
-  integrationKey: string,
+  integrationKey: string
 ): Promise<string> {
-  return sha512(
-    buildInitiationHashInput(fields, integrationKey),
-  );
+  return sha512(buildInitiationHashInput(fields, integrationKey));
 }
 
 export async function verifyInboundHash(
   entries: [string, string][],
-  integrationKey: string,
+  integrationKey: string
 ): Promise<boolean> {
-  const hashEntry = entries.find(
-    ([key]) => key.toLowerCase() === "hash",
-  );
-
+  const hashEntry = entries.find(([key]) => key.toLowerCase() === "hash");
   if (!hashEntry?.[1]) return false;
 
   let concat = "";
-
   for (const [key, value] of entries) {
     if (key.toLowerCase() !== "hash") {
       concat += value;
     }
   }
-
   concat += integrationKey.trim();
 
   const expectedHash = await sha512(concat);
-
   return expectedHash === hashEntry[1].toUpperCase();
 }
 
-export function isPaidStatus(status: string | undefined): boolean {
+export function isPaidStatus(status: string | null | undefined): boolean {
   if (!status) return false;
-
   return PAYNOW_PAID_STATUSES.has(status.toLowerCase());
-}
-
-export function extractUserId(
-  reference: string | undefined,
-  notes: string | undefined,
-): string | null {
-  const refMatch = reference?.match(/^SE_(.+)_\d+$/);
-
-  if (refMatch?.[1]) {
-    return refMatch[1];
-  }
-
-  const notesMatch = notes?.match(/userId:([^|\s]+)/);
-
-  if (notesMatch?.[1]) {
-    return notesMatch[1].trim();
-  }
-
-  return null;
 }
