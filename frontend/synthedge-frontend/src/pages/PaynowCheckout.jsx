@@ -2,7 +2,7 @@
  * PaynowCheckout
  *
  * Creates a pending SynthEdge payment record, starts Paynow checkout,
- * stores the Paynow poll URL locally, and verifies the payment after return.
+ * stores the Paynow reference locally, and verifies the payment after return.
  *
  * Subscription activation is performed by the Paynow webhook -> Entities
  * Worker flow. Frontend polling is only used to show the current payment
@@ -78,9 +78,9 @@ export default function PaynowCheckout() {
       return;
     }
 
-    const pollUrl = pollData?.pollUrl;
+    const reference = pollData?.reference;
 
-    if (!pollUrl) {
+    if (!reference) {
       setConfirmTimedOut(true);
       return;
     }
@@ -88,10 +88,10 @@ export default function PaynowCheckout() {
     const intervalId = setInterval(async () => {
       pollAttempts.current += 1;
 
-      // Check Paynow directly every third attempt.
+      // Check Paynow directly every third attempt using the payment reference.
       if (pollAttempts.current % 3 === 0) {
         try {
-          const result = await pollPaynow(pollUrl);
+          const result = await pollPaynow(reference);
 
           const status = result?.status || null;
           setPaymentStatus(status);
@@ -102,9 +102,7 @@ export default function PaynowCheckout() {
           // successful subscription activation.
           if (
             normalizedStatus === "cancelled" ||
-            normalizedStatus === "failed" ||
-            normalizedStatus === "declined" ||
-            normalizedStatus === "error"
+            normalizedStatus === "failed"
           ) {
             clearInterval(intervalId);
             sessionStorage.removeItem(POLL_STORAGE_KEY);
@@ -176,14 +174,13 @@ export default function PaynowCheckout() {
         throw new Error("Paynow did not return a checkout URL.");
       }
 
-      // 3. Keep the poll URL locally so it survives the Paynow redirect.
-      if (payload?.pollurl) {
+      // 3. Keep the Paynow reference locally so it survives the Paynow redirect.
+      if (payload?.reference) {
         sessionStorage.setItem(
           POLL_STORAGE_KEY,
           JSON.stringify({
             paymentRecordId: paymentRecord.id,
             reference: payload.reference,
-            pollUrl: payload.pollurl,
           })
         );
       }

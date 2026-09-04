@@ -9,25 +9,20 @@ const PAYNOW_WORKER_URL =
   "https://synthedge-paynow.thomsonvr-info.workers.dev";
 
 export interface PollPaynowResponse {
-  success: boolean;
-  status?: string | null;
-  paynowreference?: string | null;
-  raw?: string;
+  ok: boolean;
+  status?: string;
+  activated?: boolean;
+  reference?: string;
   error?: string;
 }
 
 export async function pollPaynow(
-  pollUrl: string
+  reference: string
 ): Promise<PollPaynowResponse> {
-  const response = await fetch(`${PAYNOW_WORKER_URL}/poll`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      poll_url: pollUrl,
-    }),
-  });
+  const response = await fetch(
+    `${PAYNOW_WORKER_URL}/poll?reference=${encodeURIComponent(reference)}`,
+    { method: "GET" }
+  );
 
   const payload = await response.json();
 
