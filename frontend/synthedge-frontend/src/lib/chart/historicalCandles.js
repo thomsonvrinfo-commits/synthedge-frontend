@@ -1,7 +1,6 @@
 import { fetchDerivCandles, SYMBOL_MAP } from "./derivWebSocket.js";
 
-const WORKER_BASE_URL = "https://synthedge-candles-api-production.thomsonvr-info.workers.dev";
-
+const WORKER_BASE_URL = "https://synthedge-candles-api.thomsonvr-info.workers.dev";
 const SECONDS_TO_TIMEFRAME = {
   60: "M1",
   300: "M5",
