@@ -8,7 +8,7 @@ name = "synthedge-paynow"
 
 [env.production.vars]
 APP_BASE_URL = "https://app.synthedgeapp.co.zw"
-PAYNOW_RETURN_URL = "https://app.synthedgeapp.co.zw/checkout"
+PAYNOW_RETURN_URL = "https://app.synthedgeapp.co.zw/checkout/paynow"
 PAYNOW_RESULT_URL = "https://synthedge-paynow.thomsonvr-info.workers.dev/result"
 
 [[env.production.d1_databases]]

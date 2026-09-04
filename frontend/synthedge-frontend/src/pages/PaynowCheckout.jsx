@@ -39,11 +39,9 @@ export default function PaynowCheckout() {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
-  const returnStatus = searchParams.get("status");
+  const referenceFromUrl = searchParams.get("reference");
   const planParam = searchParams.get("plan") || "monthly";
   const isAnnual = planParam === "annual";
-
-  const isReturnSuccess = returnStatus === "success";
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -55,80 +53,111 @@ export default function PaynowCheckout() {
   const { isActive, isLoading: subLoading } = useSubscription();
 
   useEffect(() => {
-    if (!isReturnSuccess || isActive) {
+    if (isActive) {
       pollAttempts.current = 0;
       setConfirmTimedOut(false);
+      sessionStorage.removeItem(POLL_STORAGE_KEY);
       return;
     }
 
     const stored = sessionStorage.getItem(POLL_STORAGE_KEY);
 
-    if (!stored) {
-      setConfirmTimedOut(true);
-      return;
+    let reference = referenceFromUrl;
+
+    if (!reference && stored) {
+      try {
+        const pollData = JSON.parse(stored);
+        reference = pollData?.reference || null;
+      } catch {
+        sessionStorage.removeItem(POLL_STORAGE_KEY);
+      }
     }
 
-    let pollData;
-
-    try {
-      pollData = JSON.parse(stored);
-    } catch {
-      sessionStorage.removeItem(POLL_STORAGE_KEY);
-      setConfirmTimedOut(true);
-      return;
-    }
-
-    const reference = pollData?.reference;
-
+    // Normal checkout page: there is no payment reference yet.
     if (!reference) {
-      setConfirmTimedOut(true);
+      pollAttempts.current = 0;
+      setConfirmTimedOut(false);
       return;
     }
 
-    const intervalId = setInterval(async () => {
+    // Keep the reference from the Paynow return URL available locally.
+    sessionStorage.setItem(
+      POLL_STORAGE_KEY,
+      JSON.stringify({
+        ...(stored ? (() => {
+          try {
+            return JSON.parse(stored);
+          } catch {
+            return {};
+          }
+        })() : {}),
+        reference,
+      })
+    );
+
+    let cancelled = false;
+
+    const checkPayment = async () => {
+      if (cancelled) return;
+
       pollAttempts.current += 1;
 
-      // Check Paynow directly every third attempt using the payment reference.
-      if (pollAttempts.current % 3 === 0) {
-        try {
-          const result = await pollPaynow(reference);
+      try {
+        const result = await pollPaynow(reference);
 
-          const status = result?.status || null;
-          setPaymentStatus(status);
+        if (cancelled) return;
 
-          const normalizedStatus = String(status || "").toLowerCase();
+        const status = result?.status || null;
+        const normalizedStatus = String(status || "").toLowerCase();
 
-          // These statuses are terminal and should not be treated as
-          // successful subscription activation.
-          if (
-            normalizedStatus === "cancelled" ||
-            normalizedStatus === "failed"
-          ) {
-            clearInterval(intervalId);
-            sessionStorage.removeItem(POLL_STORAGE_KEY);
-            setError("Payment was not completed.");
-            setConfirmTimedOut(false);
-            return;
-          }
-        } catch (e) {
-          console.warn("Paynow polling failed:", e);
+        setPaymentStatus(status);
+
+        if (normalizedStatus === "approved") {
+          await queryClient.invalidateQueries({
+            queryKey: ["traderProfileSub"],
+          });
+
+          return;
+        }
+
+        if (
+          normalizedStatus === "cancelled" ||
+          normalizedStatus === "failed"
+        ) {
+          setError("Payment was not completed.");
+          sessionStorage.removeItem(POLL_STORAGE_KEY);
+          return;
+        }
+
+        await queryClient.invalidateQueries({
+          queryKey: ["traderProfileSub"],
+        });
+
+        if (pollAttempts.current >= CONFIRM_MAX_ATTEMPTS) {
+          setConfirmTimedOut(true);
+          sessionStorage.removeItem(POLL_STORAGE_KEY);
+          return;
+        }
+      } catch (e) {
+        console.warn("Paynow polling failed:", e);
+
+        if (pollAttempts.current >= CONFIRM_MAX_ATTEMPTS) {
+          setConfirmTimedOut(true);
+          sessionStorage.removeItem(POLL_STORAGE_KEY);
         }
       }
+    };
 
-      // The webhook activates the subscription. Refresh subscription state.
-      await queryClient.invalidateQueries({
-        queryKey: ["traderProfileSub"],
-      });
+    // Check immediately when returning from Paynow.
+    checkPayment();
 
-      if (pollAttempts.current >= CONFIRM_MAX_ATTEMPTS) {
-        clearInterval(intervalId);
-        sessionStorage.removeItem(POLL_STORAGE_KEY);
-        setConfirmTimedOut(true);
-      }
-    }, CONFIRM_POLL_MS);
+    const intervalId = setInterval(checkPayment, CONFIRM_POLL_MS);
 
-    return () => clearInterval(intervalId);
-  }, [isReturnSuccess, isActive, queryClient]);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [referenceFromUrl, isActive, queryClient]);
 
   const handlePaynow = async () => {
     setLoading(true);
@@ -221,7 +250,7 @@ export default function PaynowCheckout() {
     );
   }
 
-  if (isReturnSuccess && error) {
+  if (referenceFromUrl && error) {
     return (
       <div className="max-w-md mx-auto py-16 text-center space-y-4">
         <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
@@ -238,7 +267,7 @@ export default function PaynowCheckout() {
         <Button
           onClick={() => {
             sessionStorage.removeItem(POLL_STORAGE_KEY);
-            window.location.href = `/checkout?plan=${planParam}`;
+            window.location.href = `/checkout/paynow?plan=${planParam}`;
           }}
           variant="outline"
         >
@@ -248,32 +277,7 @@ export default function PaynowCheckout() {
     );
   }
 
-  if (isReturnSuccess && !confirmTimedOut) {
-    return (
-      <div className="max-w-md mx-auto py-16 text-center space-y-4">
-        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-          <Loader2 className="w-8 h-8 text-primary animate-spin" />
-        </div>
-
-        <h2 className="text-xl font-bold">
-          Confirming your payment…
-        </h2>
-
-        <p className="text-sm text-muted-foreground">
-          Paynow has returned your payment result. We are confirming the
-          transaction and activating your subscription.
-        </p>
-
-        {paymentStatus && (
-          <p className="text-xs text-muted-foreground">
-            Paynow status: {paymentStatus}
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  if (isReturnSuccess && confirmTimedOut) {
+  if (referenceFromUrl && confirmTimedOut) {
     return (
       <div className="max-w-md mx-auto py-16 text-center space-y-4">
         <div className="w-16 h-16 rounded-2xl bg-warning/10 flex items-center justify-center mx-auto">
@@ -300,30 +304,28 @@ export default function PaynowCheckout() {
     );
   }
 
-  if (returnStatus === "cancelled") {
-    sessionStorage.removeItem(POLL_STORAGE_KEY);
-
+  if (referenceFromUrl) {
     return (
       <div className="max-w-md mx-auto py-16 text-center space-y-4">
-        <div className="w-16 h-16 rounded-2xl bg-warning/10 flex items-center justify-center mx-auto">
-          <AlertTriangle className="w-8 h-8 text-warning" />
+        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
         </div>
 
-        <h2 className="text-xl font-bold">Payment cancelled</h2>
+        <h2 className="text-xl font-bold">
+          Confirming your payment…
+        </h2>
 
         <p className="text-sm text-muted-foreground">
-          You cancelled the Paynow checkout. No SynthEdge subscription was
-          activated.
+          Paynow has returned your payment result. We are checking the
+          transaction status and activating your subscription if payment was
+          approved.
         </p>
 
-        <Button
-          onClick={() => {
-            window.location.href = `/checkout?plan=${planParam}`;
-          }}
-          variant="outline"
-        >
-          Try Again
-        </Button>
+        {paymentStatus && (
+          <p className="text-xs text-muted-foreground">
+            Paynow status: {paymentStatus}
+          </p>
+        )}
       </div>
     );
   }

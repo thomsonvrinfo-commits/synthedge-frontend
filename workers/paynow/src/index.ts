@@ -89,7 +89,7 @@ async function initiate(request: Request, env: Env): Promise<Response> {
     reference,
     amount: amount.toFixed(2),
     additionalinfo: `SynthEdge ${billingCycle} subscription`,
-    returnurl: `${env.PAYNOW_RETURN_URL}?status=success&reference=${encodeURIComponent(reference)}`,
+    returnurl: `${env.PAYNOW_RETURN_URL}?reference=${encodeURIComponent(reference)}`,
     resulturl: env.PAYNOW_RESULT_URL ?? "",
     status: "Message",
   };
