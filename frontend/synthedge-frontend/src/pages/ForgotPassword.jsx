@@ -46,9 +46,18 @@ export default function ForgotPassword() {
             </Button>
           </form>
         ) : (
-          <div className="text-center p-6 bg-card rounded-xl border border-border">
-            <p className="text-sm text-muted-foreground">If an account exists with that email, you'll receive a reset code shortly.</p>
-          </div>
+          <div className="text-center p-6 bg-card rounded-xl border border-border space-y-4">
+  <p className="text-sm text-muted-foreground">
+    If an account exists with that email, you'll receive a reset code shortly.
+  </p>
+
+  <Link
+    to={`/reset-password?email=${encodeURIComponent(email)}`}
+    className="inline-flex items-center justify-center text-sm font-medium text-primary hover:underline"
+  >
+    I have my code
+  </Link>
+</div>
         )}
 
         <Link to="/login" className="flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors">
