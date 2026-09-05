@@ -19,7 +19,7 @@ export async function requireUser(
     env.JWT_SECRET
   );
 
-  if (!result.valid || !result.payload) {
+     if (!result.valid || !result.payload) {
     return null;
   }
 
