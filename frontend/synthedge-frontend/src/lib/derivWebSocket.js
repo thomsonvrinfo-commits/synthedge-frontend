@@ -107,9 +107,12 @@ export const BACKTEST_INDICES = Object.keys(SYMBOL_MAP);
  * @param {string} symbol   - Deriv symbol code e.g. "R_75"
  * @param {number} granularity - Candle size in seconds (60 = 1min, 300 = 5min)
  * @param {number} count    - Number of candles to fetch (max ~5000)
+ * @param {number|null} endEpoch - Unix seconds to end at. Omit/null for "latest" (now) —
+ *   the original live/gap-fill behavior. Pass an explicit epoch to fetch a specific
+ *   historical window (e.g. for backtest replay) instead of always the most recent candles.
  * @returns {Promise<Array<{time, open, high, low, close}>>}
  */
-export function fetchDerivCandles(symbol, granularity = 60, count = 5000) {
+export function fetchDerivCandles(symbol, granularity = 60, count = 5000, endEpoch = null) {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(DERIV_WS_URL);
     const timeoutId = setTimeout(() => {
@@ -123,7 +126,7 @@ export function fetchDerivCandles(symbol, granularity = 60, count = 5000) {
         style: "candles",
         granularity,
         count,
-        end: "latest",
+        end: endEpoch ? String(endEpoch) : "latest",
         adjust_start_time: 1,
       }));
     };
