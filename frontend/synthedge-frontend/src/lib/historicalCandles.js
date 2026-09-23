@@ -15,14 +15,24 @@ const SECONDS_TO_TIMEFRAME = {
 const MERGE_GAP_TOLERANCE_SECONDS = 3600;
 
 const INDEX_NAME_TO_D1_SYMBOL = {
+  "Volatility 5": "Volatility 5 Index",
   "Volatility 10": "Volatility 10 Index",
+  "Volatility 15": "Volatility 15 Index",
+  "Volatility 25": "Volatility 25 Index",
+  "Volatility 30": "Volatility 30 Index",
   "Volatility 50": "Volatility 50 Index",
   "Volatility 75": "Volatility 75 Index",
+  "Volatility 90": "Volatility 90 Index",
   "Volatility 100": "Volatility 100 Index",
   "Volatility 100 (1s)": "Volatility 100 (1s) Index",
+  "Volatility 5 Index": "Volatility 5 Index",
   "Volatility 10 Index": "Volatility 10 Index",
+  "Volatility 15 Index": "Volatility 15 Index",
+  "Volatility 25 Index": "Volatility 25 Index",
+  "Volatility 30 Index": "Volatility 30 Index",
   "Volatility 50 Index": "Volatility 50 Index",
   "Volatility 75 Index": "Volatility 75 Index",
+  "Volatility 90 Index": "Volatility 90 Index",
   "Volatility 100 Index": "Volatility 100 Index",
   "Volatility 100 (1s) Index": "Volatility 100 (1s) Index",
 };
@@ -76,7 +86,36 @@ async function fetchWorkerCandles(indexName, granularitySeconds, fromEpoch, toEp
   }));
 }
 
+const DERIV_MAX_CANDLES_PER_CALL = 5000;
+
+// Symbols with no R2/Worker-backed history (forex, gold, Jump/Crash/Boom/Step/Range Break,
+// and any volatility variant outside INDEX_NAME_TO_D1_SYMBOL) are served straight from
+// Deriv's live API instead of throwing. This is real data for the exact requested window —
+// not a fallback/approximation — but it only covers what Deriv's API can return in one call.
+async function fetchDerivOnlyCandles(indexName, granularitySeconds, fromEpoch, toEpoch) {
+  const symbol = SYMBOL_MAP[indexName];
+  if (!symbol) {
+    throw new Error(`Unknown index: ${indexName}`);
+  }
+
+  const candlesNeeded = Math.ceil((toEpoch - fromEpoch) / granularitySeconds) + 1;
+  if (candlesNeeded > DERIV_MAX_CANDLES_PER_CALL) {
+    throw new Error(
+      `${indexName} has no backfilled history yet — the requested range needs ${candlesNeeded} candles, ` +
+      `but live data only covers the most recent ${DERIV_MAX_CANDLES_PER_CALL} candles at this timeframe. ` +
+      `Pick a shorter/more recent range, or a lower granularity.`
+    );
+  }
+
+  console.log("FETCHING LIVE (no Worker backing):", indexName, "->", symbol);
+  return fetchDerivCandles(symbol, granularitySeconds, candlesNeeded, toEpoch);
+}
+
 export async function fetchMergedCandles(indexName, granularitySeconds, fromEpoch, toEpoch) {
+  if (!INDEX_NAME_TO_D1_SYMBOL[indexName]) {
+    return fetchDerivOnlyCandles(indexName, granularitySeconds, fromEpoch, toEpoch);
+  }
+
   const historical = await fetchWorkerCandles(indexName, granularitySeconds, fromEpoch, toEpoch);
 
   const lastHistoricalEpoch = historical.length
