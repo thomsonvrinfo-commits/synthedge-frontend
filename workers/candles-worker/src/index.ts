@@ -14,9 +14,14 @@ import { parquetReadObjects } from "hyparquet";
 const VERSION = "SYNTHEDGE_WORKER_V4_CORS_AUTH_FIXED";
 
 const ALLOWED_SYMBOLS = new Set([
+  "Volatility 5 Index",
   "Volatility 10 Index",
+  "Volatility 15 Index",
+  "Volatility 25 Index",
+  "Volatility 30 Index",
   "Volatility 50 Index",
   "Volatility 75 Index",
+  "Volatility 90 Index",
   "Volatility 100 Index",
 ]);
 
@@ -31,9 +36,14 @@ const TIMEFRAMES: Record<string, number> = {
 };
 
 const FOLDER_MAP: Record<string, string> = {
+  "Volatility 5 Index": "volatility-5",
   "Volatility 10 Index": "volatility-10",
+  "Volatility 15 Index": "volatility-15",
+  "Volatility 25 Index": "volatility-25",
+  "Volatility 30 Index": "volatility-30",
   "Volatility 50 Index": "volatility-50",
   "Volatility 75 Index": "volatility-75",
+  "Volatility 90 Index": "volatility-90",
   "Volatility 100 Index": "volatility-100",
 };
 
