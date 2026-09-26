@@ -35,7 +35,7 @@ const blank = () => ({
   custom_fields: {}, trade_date: new Date().toISOString().slice(0, 16), source: "journal",
 });
 
-function ScreenshotUpload({ label, value, onChange }) {
+export function ScreenshotUpload({ label, value, onChange }) {
   const [uploading, setUploading] = useState(false);
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
