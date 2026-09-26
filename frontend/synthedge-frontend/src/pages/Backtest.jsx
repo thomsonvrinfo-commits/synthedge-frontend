@@ -103,6 +103,8 @@ export default function Backtest() {
   const [ghost,      setGhost]      = useState(null);
   // ─── Text editing overlay ────────────────────────────────────────────────
   const [editingText, setEditingText] = useState(null);
+  const [textFontSize, setTextFontSize] = useState(14);
+  const [textBold, setTextBold] = useState(true);
   // ─── Indicators ─────────────────────────────────────────────────────────
   const [activeIndicators, setActiveIndicators] = useState(DEFAULT_INDICATORS);
   // ─── Session ────────────────────────────────────────────────────────────
@@ -842,7 +844,31 @@ useEffect(() => {
       }
     }
   }, [isOnPriceAxis, scheduleRender]);
-  // ─── Keyboard shortcuts ──────────────────────────────────────────────────
+  // ─── Native (non-passive) touch listeners ────────────────────────────────
+  // React's onTouchStart/onTouchMove JSX props are registered as passive
+  // listeners by default (for scroll-perf reasons) — calling e.preventDefault()
+  // inside them is silently ignored by the browser. That let the native
+  // pull-to-refresh / page-scroll gesture fire *alongside* our custom pan,
+  // which is what caused the chart to feel like it "wants to reload" while
+  // panning. Binding manually with { passive: false } is the only way to make
+  // preventDefault() actually take effect on mobile.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onStart = (e) => handleTouchStart(e);
+    const onMove = (e) => handleTouchMove(e);
+    const onEnd = (e) => handleTouchEnd(e);
+    canvas.addEventListener("touchstart", onStart, { passive: false });
+    canvas.addEventListener("touchmove", onMove, { passive: false });
+    canvas.addEventListener("touchend", onEnd, { passive: false });
+    canvas.addEventListener("touchcancel", onEnd, { passive: false });
+    return () => {
+      canvas.removeEventListener("touchstart", onStart);
+      canvas.removeEventListener("touchmove", onMove);
+      canvas.removeEventListener("touchend", onEnd);
+      canvas.removeEventListener("touchcancel", onEnd);
+    };
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
   useEffect(() => {
     const onKey = (e) => {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
@@ -1002,6 +1028,18 @@ useEffect(() => {
     const { mx, my } = coords;
     const hit = hitTestObjects(objectsRef.current, mx, my, transformRef.current, { includeHandles: true });
     if (hit) {
+      const hitObj = objectsRef.current.find(o => o.id === hit.id);
+      if (hitObj?.type === "text") {
+        setTextFontSize(hitObj.fontSize || 14);
+        setTextBold(hitObj.bold !== false);
+        setEditingText({
+          id: hitObj.id,
+          x: transformRef.current.absToX(hitObj.absIndex),
+          y: transformRef.current.priceToY(hitObj.price),
+          initial: hitObj.label,
+        });
+        return;
+      }
       setEditingId(hit.id);   editingIdRef.current  = hit.id;
       setSelectedId(hit.id);  selectedIdRef.current = hit.id;
     }
@@ -1088,7 +1126,9 @@ useEffect(() => {
     if (activeTool === "text") {
       const newId = Date.now();
       const rect = canvasRef.current.getBoundingClientRect();
-      setObjects(prev => [...prev, { id: newId, type: "text", price, absIndex, label: "" }]);
+      setObjects(prev => [...prev, { id: newId, type: "text", price, absIndex, label: "", fontSize: 14, bold: true }]);
+      setTextFontSize(14);
+      setTextBold(true);
       setEditingText({ id: newId, x: e.clientX - rect.left, y: e.clientY - rect.top });
       setActiveTool("select");
       return;
@@ -1377,20 +1417,18 @@ try {
       )}
       {/* Main chart workspace */}
       {!loading && candles.length > 0 && (
-        <div className="flex-1 relative overflow-hidden min-h-0">
+        <div className="flex-1 relative overflow-hidden min-h-0" style={{ overscrollBehavior: "contain" }}>
           {/* Canvas fills the workspace */}
           <canvas
             ref={canvasRef}
             className="w-full h-full block"
+            style={{ touchAction: "none" }}
             onClick={handleCanvasClick}
             onDoubleClick={handleCanvasDblClick}
             onMouseMove={handleMouseMove}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleCanvasMouseLeave}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
           />
           {/* Floating vertical toolbar — left side */}
           <FloatingToolbar
@@ -1461,26 +1499,59 @@ try {
           />
           {/* Text label editor overlay */}
           {editingText && (
-            <div className="absolute z-30" style={{ left: editingText.x, top: editingText.y - 20 }}>
+            <div className="absolute z-30 flex items-center gap-1" style={{ left: editingText.x, top: editingText.y - 20 }}>
               <input
                 autoFocus
+                defaultValue={editingText.initial || ""}
                 placeholder="Type label…"
-                className="bg-card border border-primary text-foreground text-xs px-2 py-1 rounded outline-none min-w-[100px] font-mono shadow-lg"
+                style={{ fontWeight: textBold ? "bold" : "normal", fontSize: `${textFontSize}px` }}
+                className="bg-card border border-primary text-foreground px-2 py-1 rounded outline-none min-w-[100px] font-mono shadow-lg"
                 onKeyDown={(e) => {
                   e.stopPropagation();
                   if (e.key === "Enter" || e.key === "Escape") {
                     const val = e.target.value.trim() || "Note";
-                    setObjects(prev => prev.map(o => o.id === editingText.id ? { ...o, label: val } : o));
+                    setObjects(prev => prev.map(o => o.id === editingText.id ? { ...o, label: val, fontSize: textFontSize, bold: textBold } : o));
                     setEditingText(null);
                     setActiveTool("select");
                   }
                 }}
                 onBlur={(e) => {
                   const val = e.target.value.trim() || "Note";
-                  setObjects(prev => prev.map(o => o.id === editingText.id ? { ...o, label: val } : o));
+                  setObjects(prev => prev.map(o => o.id === editingText.id ? { ...o, label: val, fontSize: textFontSize, bold: textBold } : o));
                   setEditingText(null);
                 }}
               />
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()} // keep focus in the text input
+                onClick={() => setTextBold(p => !p)}
+                title="Bold"
+                className={cn(
+                  "w-7 h-7 rounded flex items-center justify-center text-xs font-bold border shadow-lg flex-shrink-0",
+                  textBold ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground"
+                )}
+              >
+                B
+              </button>
+              <div className="flex items-center bg-card border border-border rounded shadow-lg flex-shrink-0">
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setTextFontSize(p => Math.max(9, p - 1))}
+                  className="w-6 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground text-xs"
+                >
+                  −
+                </button>
+                <span className="w-6 text-center text-[10px] text-foreground">{textFontSize}</span>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setTextFontSize(p => Math.min(32, p + 1))}
+                  className="w-6 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground text-xs"
+                >
+                  +
+                </button>
+              </div>
             </div>
           )}
           {/* Active tool hint tooltip */}
