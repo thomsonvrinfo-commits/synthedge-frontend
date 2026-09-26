@@ -43,6 +43,8 @@ export function useChartSettings() {
 }
 
 export default function ChartSettingsDrawer({ open, onClose, settings, onUpdate, activeIndicators, onIndicatorsChange }) {
+  const [customType, setCustomType] = useState("ema");
+  const [customPeriod, setCustomPeriod] = useState("");
   const [tab, setTab] = useState("appearance");
 
   if (!open) return null;
@@ -88,6 +90,27 @@ export default function ChartSettingsDrawer({ open, onClose, settings, onUpdate,
       </button>
     </div>
   );
+
+  const CUSTOM_MA_COLORS = ["hsl(210, 90%, 60%)", "hsl(30, 90%, 60%)", "hsl(140, 70%, 50%)", "hsl(280, 70%, 65%)"];
+  const customIndicators = (activeIndicators || []).filter(entry => typeof entry !== "string");
+
+  const handleAddCustomMA = () => {
+    const period = parseInt(customPeriod, 10);
+    if (!period || period < 1 || period > 1000) return;
+    const id = `custom-${customType}-${period}-${Date.now()}`;
+    const color = CUSTOM_MA_COLORS[customIndicators.length % CUSTOM_MA_COLORS.length];
+    const newIndicator = {
+      id, type: customType, period, color,
+      label: `${customType.toUpperCase()} ${period}`,
+      category: "Custom",
+    };
+    onIndicatorsChange([...(activeIndicators || []), newIndicator]);
+    setCustomPeriod("");
+  };
+
+  const handleRemoveCustomMA = (id) => {
+    onIndicatorsChange((activeIndicators || []).filter(entry => typeof entry === "string" || entry.id !== id));
+  };
 
   return (
     <div className="absolute top-0 right-0 bottom-0 w-72 bg-card border-l border-border z-30 flex flex-col shadow-2xl">
@@ -183,6 +206,53 @@ export default function ChartSettingsDrawer({ open, onClose, settings, onUpdate,
                 </div>
               );
             })}
+
+            {/* Custom Moving Average */}
+            <div className="mb-2 pt-2 border-t border-border/50">
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2">Custom Moving Average</p>
+
+              {customIndicators.map(ind => (
+                <div key={ind.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg text-xs mb-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: ind.color }} />
+                    <span className="text-foreground">{ind.label}</span>
+                  </div>
+                  <button onClick={() => handleRemoveCustomMA(ind.id)} className="text-muted-foreground hover:text-destructive">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+
+              <div className="flex items-center gap-1.5 mt-2">
+                <div className="flex rounded-lg border border-border overflow-hidden flex-shrink-0">
+                  {["ema", "sma"].map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setCustomType(t)}
+                      className={cn(
+                        "px-2 py-1.5 text-[10px] font-semibold uppercase",
+                        customType === t ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                      )}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000"
+                  placeholder="Period, e.g. 73"
+                  value={customPeriod}
+                  onChange={e => setCustomPeriod(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleAddCustomMA()}
+                  className="flex-1 min-w-0 h-8 bg-secondary border border-border/60 rounded-lg px-2 text-xs focus:outline-none focus:border-primary/60"
+                />
+                <Button size="sm" className="h-8 px-2.5 text-xs flex-shrink-0" onClick={handleAddCustomMA}>
+                  Add
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 
