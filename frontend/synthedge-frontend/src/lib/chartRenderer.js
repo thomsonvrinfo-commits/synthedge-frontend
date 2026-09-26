@@ -17,6 +17,26 @@ function getC(theme) {
 const C = CHART_THEMES.dark;
 
 const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+const FIB_LEVEL_COLORS = {
+  0:     "hsl(0, 0%, 60%)",
+  0.236: "hsl(350, 75%, 60%)",
+  0.382: "hsl(30, 90%, 58%)",
+  0.5:   "hsl(50, 90%, 55%)",
+  0.618: "hsl(190, 85%, 55%)",
+  0.786: "hsl(265, 75%, 68%)",
+  1:     "hsl(0, 0%, 60%)",
+};
+// TradingView-style per-level colors — makes each retracement line
+// identifiable at a glance instead of every level looking the same.
+const FIB_LEVEL_COLORS = [
+  "hsl(0, 0%, 60%)",    // 0%
+  "hsl(4, 80%, 62%)",   // 23.6%
+  "hsl(28, 85%, 58%)",  // 38.2%
+  "hsl(45, 93%, 58%)",  // 50%
+  "hsl(142, 71%, 50%)", // 61.8%
+  "hsl(190, 90%, 55%)", // 78.6%
+  "hsl(265, 80%, 68%)", // 100%
+];
 
 // ─── Layer 1: Background + grid + axes ───────────────────────────────────────
 export function renderGridLayer(ctx, transform, theme = "dark", chartSettings = {}) {
@@ -399,7 +419,8 @@ export function renderObject(ctx, transform, obj, options = {}) {
     case "text": {
       if (obj.price == null || obj.absIndex == null) break;
       const x = absToX(obj.absIndex), y = priceToY(obj.price);
-      ctx.font = "bold 11px Inter, sans-serif";
+      const weight = obj.bold !== false ? "bold " : "";
+      ctx.font = `${weight}${obj.fontSize || 11}px Inter, sans-serif`;
       ctx.fillStyle = stroke;
       ctx.fillText(obj.label || "Note", x, y - 6);
       if (isEditing) _handle(ctx, x, y, hoverHandle === "body");
@@ -759,13 +780,11 @@ function _fib(ctx, transform, obj, stroke, isEditing, hoverHandle) {
   // Bounded between anchor points — compact, local rendering like TradingView/MT5
   const left  = Math.min(x1, x2);
   const right = Math.max(x1, x2);
-  const labelX = right + 6; // labels just right of the right anchor
   const priceDelta = obj.p2.price - obj.p1.price;
 
   // Clamp within chart area
   const chartRight = transform.W - transform.padR - 2;
   const effectiveRight = Math.min(right, chartRight);
-  const labelRight = Math.min(labelX + 70, chartRight - 2);
 
   ctx.save();
   ctx.strokeStyle = stroke; ctx.lineWidth = 1.2; ctx.setLineDash([4, 3]);
@@ -778,18 +797,42 @@ function _fib(ctx, transform, obj, stroke, isEditing, hoverHandle) {
   // anchors 0% at the first click instead — every level's price ended up
   // mirrored onto the wrong label (what showed as "38.2%" was actually
   // sitting at the 61.8% position, and so on).
-  FIB_LEVELS.forEach(level => {
+  FIB_LEVELS.forEach((level, idx) => {
     const price = obj.p2.price - priceDelta * level;
     const y = priceToY(price);
-    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(effectiveRight, y); ctx.stroke();
+    const levelColor = FIB_LEVEL_COLORS[level] || stroke;
+
+    // Shaded band between this level and the next one (TradingView-style zones)
+    if (idx < FIB_LEVELS.length - 1) {
+      const nextLevel = FIB_LEVELS[idx + 1];
+      const nextPrice = obj.p2.price - priceDelta * nextLevel;
+      const nextY = priceToY(nextPrice);
+      ctx.save();
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle = levelColor;
+      ctx.fillRect(left, Math.min(y, nextY), effectiveRight - left, Math.abs(nextY - y));
+      ctx.restore();
+    }
+
+    ctx.beginPath();
+    ctx.strokeStyle = levelColor;
+    ctx.lineWidth = level === 0 || level === 1 ? 1.4 : 1;
+    ctx.setLineDash(level === 0.618 ? [] : [4, 3]);
+    ctx.globalAlpha = 0.9;
+    ctx.moveTo(left, y); ctx.lineTo(effectiveRight, y); ctx.stroke();
+
+    // Label with a background pill for legibility over candles
     ctx.setLineDash([]);
-    ctx.fillStyle = stroke;
-    ctx.font = "8.5px JetBrains Mono, monospace";
-    ctx.textAlign = "left";
     ctx.globalAlpha = 1;
-    ctx.fillText(`${level} · ${price.toFixed(priceDecimals(price))}`, Math.min(effectiveRight + 4, chartRight - 68), y + 3);
-    ctx.globalAlpha = 0.85;
-    ctx.setLineDash([4, 3]);
+    ctx.font = "11px JetBrains Mono, monospace";
+    ctx.textAlign = "left";
+    const labelText = `${(level * 100).toFixed(1)}%  ${price.toFixed(priceDecimals(price))}`;
+    const labelW = ctx.measureText(labelText).width;
+    const labelXPos = Math.min(effectiveRight + 4, chartRight - labelW - 10);
+    ctx.fillStyle = "rgba(15, 15, 20, 0.75)";
+    ctx.fillRect(labelXPos - 3, y - 9, labelW + 6, 16);
+    ctx.fillStyle = levelColor;
+    ctx.fillText(labelText, labelXPos, y + 3);
   });
 
   ctx.setLineDash([]);
