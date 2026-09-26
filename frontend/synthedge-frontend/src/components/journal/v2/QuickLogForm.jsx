@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useMode } from "@/lib/ModeContext";
 import { ChevronDown, Zap } from "lucide-react";
 import { DATASETS, SOURCES, toTradeSavePayload } from "@/lib/tradeAdapter";
+import { ScreenshotUpload } from "@/components/journal/TradeForm";
 import { useProAccess } from "@/hooks/useProAccess";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { calculateTradePnL } from "@/lib/symbolSpecs";
@@ -114,6 +115,7 @@ export default function QuickLogForm({ onSaved, onClose }) {
   });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState([]);
+  const [screenshotUrl, setScreenshotUrl] = useState("");
 
   const result = useMemo(() => calcResult(direction, entry, exitPrice), [direction, entry, exitPrice]);
   const rr = useMemo(() => sl ? calcRR(direction, entry, exitPrice, sl) : null, [direction, entry, exitPrice, sl]);
@@ -155,6 +157,7 @@ export default function QuickLogForm({ onSaved, onClose }) {
       pl: realPL ?? undefined,
       lot_size: volNum ?? undefined,
       session,
+      screenshot_url: screenshotUrl || undefined,
       createdAt: now.toISOString(),
     });
 
@@ -259,6 +262,12 @@ export default function QuickLogForm({ onSaved, onClose }) {
           <input value={customSetup} onChange={e => setCustomSetup(e.target.value)} placeholder="Describe your setup..."
             className="w-full h-9 bg-secondary border border-border/60 rounded-xl px-3 text-sm focus:outline-none focus:border-primary/60 transition-colors mt-2" />
         )}
+      </div>
+
+      {/* Screenshot */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Chart Screenshot</label>
+        <ScreenshotUpload label="" value={screenshotUrl} onChange={setScreenshotUrl} />
       </div>
 
       {/* Trade Date/Time */}
