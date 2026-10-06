@@ -26,6 +26,70 @@ const TOOLS = [
 export default function FloatingToolbar({ activeTool, onToolChange, onClearAll, drawingCount, isMobile }) {
   const [expanded, setExpanded] = useState(!isMobile);
 
+  if (isMobile) {
+    // Mobile: bottom-anchored horizontal strip. A vertical column of 13
+    // tools eats the entire left edge of a phone screen (that's the
+    // "toolbar fills up the whole left side" complaint) — a horizontal,
+    // scrollable strip along the bottom costs a fixed ~48px of height
+    // instead, leaving the full chart width visible.
+    return (
+      <div className="absolute left-0 right-0 bottom-2 z-20 flex flex-col items-center gap-1 px-2">
+        {expanded && (
+          <div className="flex items-center gap-0.5 bg-card/90 backdrop-blur-sm border border-border rounded-xl shadow-xl p-1 max-w-full overflow-x-auto" style={{ touchAction: "pan-x", overscrollBehavior: "contain" }}>
+            {TOOLS.map((tool, i) => {
+              if (tool === null) {
+                return <div key={`div-${i}`} className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />;
+              }
+              const Icon = tool.icon;
+              const isActive = activeTool === tool.id;
+              return (
+                <button
+                  key={tool.id}
+                  onClick={() => onToolChange(tool.id)}
+                  title={`${tool.label} [${tool.shortcut}]`}
+                  className={cn(
+                    "w-10 h-10 rounded-lg flex items-center justify-center transition-all relative flex-shrink-0",
+                    isActive
+                      ? tool.color === "success"
+                        ? "bg-success/20 text-success ring-1 ring-success/50"
+                        : tool.color === "destructive"
+                          ? "bg-destructive/20 text-destructive ring-1 ring-destructive/50"
+                          : "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  {isActive && tool.group !== "select" && (
+                    <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+                  )}
+                </button>
+              );
+            })}
+            {drawingCount > 0 && (
+              <>
+                <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
+                <button
+                  onClick={onClearAll}
+                  title={`Clear all drawings (${drawingCount})`}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-destructive hover:bg-destructive/10 transition-all flex-shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        <button
+          onClick={() => setExpanded(p => !p)}
+          className="w-8 h-8 rounded-lg bg-card/90 backdrop-blur-sm border border-border shadow-lg flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
+          title={expanded ? "Collapse toolbar" : "Expand toolbar"}
+        >
+          {expanded ? <ChevronRight className="w-3.5 h-3.5 rotate-90" /> : <ChevronLeft className="w-3.5 h-3.5 -rotate-90" />}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="absolute left-2 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-1">
       {/* Toggle button */}

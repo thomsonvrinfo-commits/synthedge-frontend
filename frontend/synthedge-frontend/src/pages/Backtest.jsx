@@ -105,6 +105,8 @@ export default function Backtest() {
   const [editingText, setEditingText] = useState(null);
   const [textFontSize, setTextFontSize] = useState(14);
   const [textBold, setTextBold] = useState(true);
+  // ─── On-screen diagnostics (open the page with ?debug=1) ─────────────────
+  // Tablets have no dev console, so this shows what the browser supports and
   // ─── Indicators ─────────────────────────────────────────────────────────
   const [activeIndicators, setActiveIndicators] = useState(DEFAULT_INDICATORS);
   // ─── Session ────────────────────────────────────────────────────────────
@@ -1417,7 +1419,7 @@ try {
       )}
       {/* Main chart workspace */}
       {!loading && candles.length > 0 && (
-        <div className="flex-1 relative overflow-hidden min-h-0" style={{ overscrollBehavior: "contain" }}>
+        <div className="flex-1 relative overflow-hidden min-h-0" style={{ overscrollBehavior: "contain", touchAction: "none" }}>
           {/* Canvas fills the workspace */}
           <canvas
             ref={canvasRef}

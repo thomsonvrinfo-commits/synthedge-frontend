@@ -90,8 +90,18 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* Stops the browser's native pull-to-refresh / rubber-band scroll at the
+       document level. The chart canvas already handles its own pan gestures
+       correctly (see Backtest.jsx's non-passive touch listeners) — this is
+       the other half: without it, the *page* can still rubber-band a few
+       pixels, which is what triggers the address-bar show/hide animation
+       that reads as "the browser wants to reload" while panning. */
+    overscroll-behavior-y: none;
+  }
   body {
     @apply bg-background text-foreground font-inter;
+    overscroll-behavior-y: none;
   }
 }
 

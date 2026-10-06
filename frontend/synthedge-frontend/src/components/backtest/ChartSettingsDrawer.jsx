@@ -139,7 +139,7 @@ export default function ChartSettingsDrawer({ open, onClose, settings, onUpdate,
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4" style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}>
         {tab === "appearance" && (
           <>
             {/* Candle Colors */}

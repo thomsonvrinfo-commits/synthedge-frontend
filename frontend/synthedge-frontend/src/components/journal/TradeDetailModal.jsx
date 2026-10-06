@@ -80,7 +80,7 @@ export default function TradeDetailModal({ trade, open, onClose, onEdit }) {
             <TabsTrigger value="info">Trade Info</TabsTrigger>
             <TabsTrigger value="review">Review</TabsTrigger>
             {screenshots.length > 0 && <TabsTrigger value="screenshots">Screenshots</TabsTrigger>}
-            {trade.rule_violations?.length > 0 && (
+            {Array.isArray(trade.rule_violations) && trade.rule_violations.length > 0 && (
               <TabsTrigger value="violations" className="text-destructive">Violations</TabsTrigger>
             )}
           </TabsList>
@@ -186,10 +186,10 @@ export default function TradeDetailModal({ trade, open, onClose, onEdit }) {
             </TabsContent>
           )}
 
-          {trade.rule_violations?.length > 0 && (
+          {Array.isArray(trade.rule_violations) && trade.rule_violations.length > 0 && (
             <TabsContent value="violations">
               <div className="space-y-2">
-                {trade.rule_violations.map((v, i) => (
+                {(Array.isArray(trade.rule_violations) ? trade.rule_violations : []).map((v, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
                     <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
                     <span className="text-sm">{v}</span>
