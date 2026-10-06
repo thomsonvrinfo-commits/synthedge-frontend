@@ -7,6 +7,29 @@ import { jsonError, d1First, d1All, d1Run, nowIso, ulid, extractOwnUploadKey } f
 
 const SCREENSHOT_FIELDS = ["screenshot_url", "screenshot_before", "screenshot_during", "screenshot_after"] as const;
 
+// rule_violations and custom_fields are stored in D1 as TEXT (JSON.stringify'd on
+// write — see createTrade/updateTrade below). D1 always returns TEXT columns as
+// raw strings, never auto-parsed. Every response path MUST run rows through this
+// before Response.json(), or the frontend receives e.g. rule_violations as the
+// literal string '["late entry"]' instead of an array — trade.rule_violations.map()
+// then throws (strings have no .map), which crashes whatever rendered it. This bit
+// the AI context builder too (workers/entities/src/ai/context.ts already JSON.parses
+// this same column on its own read path) — so all read paths need the same treatment,
+// not just one.
+function parseTradeJsonFields<T extends Record<string, unknown>>(row: T): T {
+  const out: Record<string, unknown> = { ...row };
+  for (const field of ["rule_violations", "custom_fields"]) {
+    const raw = out[field];
+    if (typeof raw === "string" && raw.length > 0) {
+      try { out[field] = JSON.parse(raw); }
+      catch { out[field] = field === "rule_violations" ? [] : null; }
+    } else if (raw == null) {
+      out[field] = field === "rule_violations" ? [] : null;
+    }
+  }
+  return out as T;
+}
+
 /** Best-effort R2 delete for a screenshot field's old value — never throws or blocks the D1 write. */
 async function deleteOwnUploadIfAny(env: Env, request: Request, url: string | null | undefined): Promise<void> {
   if (!env.BUCKET) return;
@@ -45,7 +68,7 @@ export async function listTrades(env: Env, user: AuthedUser, url: URL): Promise<
           limit
         );
 
-    return Response.json(results || []);
+    return Response.json((results || []).map(parseTradeJsonFields));
   } catch (error: any) {
     console.error("listTrades error:", error);
     return jsonError(error.message ?? "Failed to list trades", 500);
@@ -117,7 +140,7 @@ export async function createTrade(request: Request, env: Env, user: AuthedUser):
     );
 
     const created = await d1First(env.DB, `SELECT * FROM trades WHERE id = ?`, id);
-    return Response.json(created);
+    return Response.json(created ? parseTradeJsonFields(created as Record<string, unknown>) : created);
   } catch (error: any) {
     console.error("createTrade error:", error);
     return jsonError(error.message ?? "Failed to create trade", 500);
@@ -133,7 +156,7 @@ export async function getTrade(env: Env, user: AuthedUser, tradeId: string): Pro
       user.id
     );
     if (!trade) return jsonError("Trade not found", 404);
-    return Response.json(trade);
+    return Response.json(parseTradeJsonFields(trade as Record<string, unknown>));
   } catch (error: any) {
     console.error("getTrade error:", error);
     return jsonError(error.message ?? "Failed to get trade", 500);
@@ -196,6 +219,7 @@ export async function updateTrade(request: Request, env: Env, user: AuthedUser, 
     );
 
     const updated = await d1First(env.DB, `SELECT * FROM trades WHERE id = ?`, tradeId);
+    const updatedParsed = updated ? parseTradeJsonFields(updated as Record<string, unknown>) : updated;
 
     // Best-effort cleanup: if a screenshot field was replaced (or cleared),
     // delete the old R2 object so uploads don't orphan indefinitely. Never
@@ -210,7 +234,7 @@ export async function updateTrade(request: Request, env: Env, user: AuthedUser, 
       }
     }
 
-    return Response.json(updated);
+    return Response.json(updatedParsed);
   } catch (error: any) {
     console.error("updateTrade error:", error);
     return jsonError(error.message ?? "Failed to update trade", 500);
