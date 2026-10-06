@@ -13,6 +13,31 @@ function getC(theme) {
   return CHART_THEMES[theme] || CHART_THEMES.dark;
 }
 
+
+function _rrPath(ctx, x, y, width, height, radius = 3) {
+  if (typeof ctx.roundRect === "function") {
+    ctx.roundRect(x, y, width, height, radius);
+    return;
+  }
+
+  const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(
+    x + width, y + height, x + width - r, y + height
+  );
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+
+
 // Keep a fallback for callers that don't pass theme
 const C = CHART_THEMES.dark;
 
@@ -26,17 +51,6 @@ const FIB_LEVEL_COLORS = {
   0.786: "hsl(265, 75%, 68%)",
   1:     "hsl(0, 0%, 60%)",
 };
-// TradingView-style per-level colors — makes each retracement line
-// identifiable at a glance instead of every level looking the same.
-const FIB_LEVEL_COLORS = [
-  "hsl(0, 0%, 60%)",    // 0%
-  "hsl(4, 80%, 62%)",   // 23.6%
-  "hsl(28, 85%, 58%)",  // 38.2%
-  "hsl(45, 93%, 58%)",  // 50%
-  "hsl(142, 71%, 50%)", // 61.8%
-  "hsl(190, 90%, 55%)", // 78.6%
-  "hsl(265, 80%, 68%)", // 100%
-];
 
 // ─── Layer 1: Background + grid + axes ───────────────────────────────────────
 export function renderGridLayer(ctx, transform, theme = "dark", chartSettings = {}) {
@@ -261,12 +275,19 @@ export function renderIndicatorOverlayLayer(ctx, transform, indicatorSeries) {
 // ─── Layer 5: Drawing objects (price+index anchored) ─────────────────────────
 export function renderDrawingsLayer(ctx, transform, objects, selectedId, editingId, hoveredId, hoverHandle) {
   for (const obj of objects) {
-    renderObject(ctx, transform, obj, {
-      isSelected: obj.id === selectedId,
-      isEditing:  obj.id === editingId,
-      isHovered:  obj.id === hoveredId,
-      hoverHandle: obj.id === hoveredId ? hoverHandle : null,
-    });
+    ctx.save();
+    try {
+      renderObject(ctx, transform, obj, {
+        isSelected: obj.id === selectedId,
+        isEditing: obj.id === editingId,
+        isHovered: obj.id === hoveredId,
+        hoverHandle: obj.id === hoveredId ? hoverHandle : null,
+      });
+    } catch (error) {
+      console.error("[ChartRenderer] Failed to render drawing:", obj?.id, error);
+    } finally {
+      ctx.restore();
+    }
   }
 }
 
@@ -503,7 +524,7 @@ function _drawReplayTrade(ctx, transform, trade) {
     ctx.textAlign = "left";
     const tw = ctx.measureText(badge).width + 10;
     ctx.fillStyle = colors.entry.replace("1)", "0.8)");
-    ctx.beginPath(); ctx.roundRect(L + 6, midY - 8, tw, 16, 3); ctx.fill();
+    ctx.beginPath(); _rrPath(ctx, L + 6, midY - 8, tw, 16, 3); ctx.fill();
     ctx.fillStyle = "#fff";
     ctx.fillText(badge, L + 11, midY + 4);
   }
@@ -545,7 +566,7 @@ export function renderPriceBadge(ctx, transform, price) {
 
   const bw = transform.padR - 4;
   ctx.fillStyle = C.price;
-  ctx.beginPath(); ctx.roundRect(W - transform.padR + 2, y - 10, bw, 20, 3); ctx.fill();
+  ctx.beginPath(); _rrPath(ctx, W - transform.padR + 2, y - 10, bw, 20, 3); ctx.fill();
   ctx.fillStyle = "#fff";
   ctx.font = "bold 9px JetBrains Mono, monospace";
   ctx.textAlign = "left";
@@ -588,7 +609,7 @@ export function renderCrosshairLayer(ctx, transform, mousePrice, mouseAbsIndex, 
   const priceLabelW = ctx.measureText(priceLabel).width + 10;
   ctx.fillStyle = theme === "light" ? "#334155" : "#475569";
   ctx.beginPath();
-  ctx.roundRect(W - padR + 2, y - 10, priceLabelW, 20, 3);
+  _rrPath(ctx, W - padR + 2, y - 10, priceLabelW, 20, 3);
   ctx.fill();
   ctx.fillStyle = "#fff";
   ctx.textAlign = "left";
@@ -604,7 +625,7 @@ export function renderCrosshairLayer(ctx, transform, mousePrice, mouseAbsIndex, 
     const timeLabelW = ctx.measureText(timeLabel).width + 10;
     ctx.fillStyle = theme === "light" ? "#334155" : "#475569";
     ctx.beginPath();
-    ctx.roundRect(Math.max(PADDING_L, x - timeLabelW / 2), chartBottom + 3, timeLabelW, 15, 3);
+    _rrPath(ctx, Math.max(PADDING_L, x - timeLabelW / 2), chartBottom + 3, timeLabelW, 15, 3);
     ctx.fill();
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
@@ -931,7 +952,7 @@ function _positionObject(ctx, transform, obj, isSelected, isEditing, hoverHandle
     const rrMidY = (entryY + tpY) / 2;
     const rrX = L + 6;
     ctx.fillStyle = isLong ? "hsla(142,71%,35%,0.85)" : "hsla(0,72%,40%,0.85)";
-    ctx.beginPath(); ctx.roundRect(rrX, rrMidY - 8, rrTw, 16, 3); ctx.fill();
+    ctx.beginPath(); _rrPath(ctx, rrX, rrMidY - 8, rrTw, 16, 3); ctx.fill();
     ctx.fillStyle = "#fff";
     ctx.textAlign = "left";
     ctx.fillText(rrLabel, rrX + 5, rrMidY + 4);
@@ -989,7 +1010,7 @@ function _positionObject(ctx, transform, obj, isSelected, isEditing, hoverHandle
       ctx.setLineDash([]);
       // Draw as a small vertical bar handle
       ctx.beginPath();
-      ctx.roundRect(x - 4, resizeMidY - 10, 8, 20, 3);
+      _rrPath(ctx, x - 4, resizeMidY - 10, 8, 20, 3);
       ctx.fill(); ctx.stroke();
     });
   }
@@ -1081,14 +1102,24 @@ function _valuePanel(ctx, transform, panel, values, color) {
   _seriesLine(ctx, transform, values, color || "hsl(190,90%,55%)", 1.2, 1, yFor);
 }
 
+
 function _clipChart(ctx, transform, render) {
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(PADDING_L, transform.padV, transform.W - PADDING_L - transform.padR, transform.chartH);
-  ctx.clip();
-  render();
-  ctx.restore();
+  try {
+    ctx.beginPath();
+    ctx.rect(
+      PADDING_L,
+      transform.padV,
+      transform.W - PADDING_L - transform.padR,
+      transform.chartH
+    );
+    ctx.clip();
+    render();
+  } finally {
+    ctx.restore();
+  }
 }
+
 
 /**
  * Full composite render — call once per frame.

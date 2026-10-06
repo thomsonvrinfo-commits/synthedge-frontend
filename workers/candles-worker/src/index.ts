@@ -13,17 +13,29 @@ import { parquetReadObjects } from "hyparquet";
 
 const VERSION = "SYNTHEDGE_WORKER_V4_CORS_AUTH_FIXED";
 
-const ALLOWED_SYMBOLS = new Set([
-  "Volatility 5 Index",
-  "Volatility 10 Index",
-  "Volatility 15 Index",
-  "Volatility 25 Index",
-  "Volatility 30 Index",
-  "Volatility 50 Index",
-  "Volatility 75 Index",
-  "Volatility 90 Index",
-  "Volatility 100 Index",
-]);
+const FOLDER_MAP: Record<string, string> = {
+  "Volatility 5 Index": "volatility-5/m1",
+  "Volatility 10 Index": "volatility-10/m1",
+  "Volatility 15 Index": "volatility-15/m1",
+  "Volatility 25 Index": "volatility-25/m1",
+  "Volatility 30 Index": "volatility-30/m1",
+  "Volatility 50 Index": "volatility-50/m1",
+  "Volatility 75 Index": "volatility-75/m1",
+  "Volatility 90 Index": "volatility-90/m1",
+  "Volatility 100 Index": "volatility-100/m1",
+
+  "Volatility 5 (1s) Index": "volatility-5/s1",
+  "Volatility 10 (1s) Index": "volatility-10/s1",
+  "Volatility 15 (1s) Index": "volatility-15/s1",
+  "Volatility 25 (1s) Index": "volatility-25/s1",
+  "Volatility 30 (1s) Index": "volatility-30/s1",
+  "Volatility 50 (1s) Index": "volatility-50/s1",
+  "Volatility 75 (1s) Index": "volatility-75/s1",
+  "Volatility 90 (1s) Index": "volatility-90/s1",
+  "Volatility 100 (1s) Index": "volatility-100/s1",
+};
+
+const ALLOWED_SYMBOLS = new Set(Object.keys(FOLDER_MAP));
 
 const TIMEFRAMES: Record<string, number> = {
   M1: 60,
@@ -33,18 +45,6 @@ const TIMEFRAMES: Record<string, number> = {
   H1: 3600,
   H4: 14400,
   D1: 86400,
-};
-
-const FOLDER_MAP: Record<string, string> = {
-  "Volatility 5 Index": "volatility-5",
-  "Volatility 10 Index": "volatility-10",
-  "Volatility 15 Index": "volatility-15",
-  "Volatility 25 Index": "volatility-25",
-  "Volatility 30 Index": "volatility-30",
-  "Volatility 50 Index": "volatility-50",
-  "Volatility 75 Index": "volatility-75",
-  "Volatility 90 Index": "volatility-90",
-  "Volatility 100 Index": "volatility-100",
 };
 
 const FREE_PLAN_CANDLE_LIMIT = 1000;
@@ -119,11 +119,13 @@ async function loadCandles(
 
   while (current <= end) {
     const month = current.toISOString().slice(0, 7);
-    const key = `${folder}/m1/${month}.parquet`;
+    const key = `${folder}/${month}.parquet`;
 
     console.log("R2 LOAD:", key);
 
-    const file = await env.BUCKET.get(key);
+    const bucket = env.BUCKET;
+    if (!bucket) throw new Error("R2 BUCKET binding is missing");
+    const file = await bucket.get(key);
 
     if (file) {
       const buffer = await file.arrayBuffer();

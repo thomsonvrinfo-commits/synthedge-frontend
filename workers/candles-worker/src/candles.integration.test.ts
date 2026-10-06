@@ -72,7 +72,8 @@ function generateM1Candles(endEpoch: number, count: number): RawCandle[] {
 async function seedR2(
   env: Env,
   folder: string,
-  candles: RawCandle[]
+candles: RawCandle[],
+subfolder: string = "m1"
 ): Promise<void> {
   const byMonth = new Map<string, RawCandle[]>();
 
@@ -93,7 +94,7 @@ async function seedR2(
   };
 
   for (const [month, monthCandles] of byMonth) {
-    const key = `${folder}/m1/${month}.parquet`;
+    const key = `${folder}/${subfolder}/${month}.parquet`;
 
    const buffer = parquetWriteBuffer({
   columnData: [
@@ -385,5 +386,82 @@ describe("Candles Worker — subscription enforcement", () => {
       env
     );
     expect(res.status).toBe(400);
+  });
+});
+
+describe("Candles Worker — symbol coverage (all R2-backed instruments)", () => {
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  const NUMBERS = [5, 10, 15, 25, 30, 50, 75, 90, 100];
+
+  // Every symbol gets its OWN marker price, so reading the wrong R2 folder
+  // would return a different close value (not just "some data").
+  const cases = NUMBERS.flatMap((n, i) => [
+    { symbol: `Volatility ${n} Index`, folder: `volatility-${n}`, sub: "m1", marker: 1000 + n },
+    { symbol: `Volatility ${n} (1s) Index`, folder: `volatility-${n}`, sub: "s1", marker: 5000 + n },
+  ]);
+
+  async function premiumToken(env: Env): Promise<string> {
+    const userId = ulid();
+    await insertUser(env, userId, { subscription_status: "EXPIRED" });
+    await activatePremium(env, userId, "user", { billingCycle: "monthly", paymentMethod: "paynow", periodDays: 30 });
+    return tokenFor(userId);
+  }
+
+  it.each(cases)("$symbol is served from $folder/$sub/ (and only from there)", async ({ symbol, folder, sub, marker }) => {
+    const env = makeEnv();
+    const candles = generateM1Candles(nowEpoch, 200).map((c) => ({ ...c, open: marker, high: marker + 1, low: marker - 1, close: marker }));
+    await seedR2(env, folder, candles, sub);
+    const token = await premiumToken(env);
+
+    const res = await worker.fetch(
+      candlesRequest(token, { symbol, timeframe: "M1", from: String(nowEpoch - 3 * 3600), to: String(nowEpoch) }),
+      env
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { candles: RawCandle[] };
+    expect(body.candles.length).toBeGreaterThan(100);
+    // every candle must come from the file we seeded for THIS symbol
+    for (const c of body.candles) expect(c.close).toBe(marker);
+  });
+
+  it("a normal index and its (1s) sibling never read each other's data", async () => {
+    const env = makeEnv();
+    const mk = (marker: number) => generateM1Candles(nowEpoch, 200).map((c) => ({ ...c, open: marker, high: marker, low: marker, close: marker }));
+    await seedR2(env, "volatility-90", mk(111), "m1");
+    await seedR2(env, "volatility-90", mk(222), "s1");
+    const token = await premiumToken(env);
+    const range = { timeframe: "M1", from: String(nowEpoch - 3 * 3600), to: String(nowEpoch) };
+
+    const normal = (await (await worker.fetch(candlesRequest(token, { symbol: "Volatility 90 Index", ...range }), env)).json()) as { candles: RawCandle[] };
+    const oneSec = (await (await worker.fetch(candlesRequest(token, { symbol: "Volatility 90 (1s) Index", ...range }), env)).json()) as { candles: RawCandle[] };
+    expect(new Set(normal.candles.map((c) => c.close))).toEqual(new Set([111]));
+    expect(new Set(oneSec.candles.map((c) => c.close))).toEqual(new Set([222]));
+  });
+
+  it("higher timeframes still aggregate correctly for a (1s) instrument", async () => {
+    const env = makeEnv();
+    await seedR2(env, "volatility-25", generateM1Candles(nowEpoch, 600), "s1");
+    const token = await premiumToken(env);
+    const res = await worker.fetch(
+      candlesRequest(token, { symbol: "Volatility 25 (1s) Index", timeframe: "H1", from: String(nowEpoch - 10 * 3600), to: String(nowEpoch) }),
+      env
+    );
+    const body = (await res.json()) as { candles: RawCandle[] };
+    expect(res.status).toBe(200);
+    expect(body.candles.length).toBeGreaterThan(5);
+    expect(body.candles.length).toBeLessThan(15);
+  });
+
+  it("rejects instruments with no R2 data, including unlisted (1s) ones", async () => {
+    const env = makeEnv();
+    const token = await premiumToken(env);
+    for (const symbol of ["Volatility 150 (1s) Index", "Volatility 250 Index", "Crash 500 Index", "NZD/USD"]) {
+      const res = await worker.fetch(candlesRequest(token, { symbol, timeframe: "M1", from: "0", to: String(nowEpoch) }), env);
+      expect(res.status).toBe(400);
+    }
+  });
+
+  it("ALLOWED_SYMBOLS and the folder table cover exactly 18 instruments", () => {
+    expect(cases.length).toBe(18);
   });
 });
